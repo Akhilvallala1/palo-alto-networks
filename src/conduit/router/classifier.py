@@ -58,17 +58,29 @@ TRIVIAL_VERBS = frozenset(
     }
 )
 
+# condense/gist/recap/restate/reword/shorten/tighten were added under issue #12.
+# They are ordinary synonyms of the verbs already here, not new capabilities: a
+# deal desk asks for a recap, the gist, or a paragraph tightened far more often
+# than it asks anyone to "summarise" or "paraphrase". Leaving them out made the
+# tier depend on the caller's register rather than on the task.
 STANDARD_VERBS = frozenset(
     {
         "compose",
+        "condense",
         "describe",
         "draft",
         "explain",
+        "gist",
         "outline",
         "paraphrase",
+        "recap",
+        "restate",
+        "reword",
         "rewrite",
+        "shorten",
         "summarise",
         "summarize",
+        "tighten",
         "write",
     }
 )
@@ -101,6 +113,9 @@ COMPLEX_VERBS = frozenset(
 )
 
 # Phrases that pin the answer shape, which is the tell for extraction-style work.
+# "number only", "name only", "nothing else" and "yes/no" were tried here under
+# issue #12 and reverted: they changed the feature vector on nine golden cases
+# and the verdict on none, because `_task_text` already resolves those prompts.
 STRUCTURED_MARKERS = (
     "as a list",
     "comma-separated",
@@ -143,6 +158,7 @@ _LEADING_NOISE_RE = re.compile(
 # harder tier, since under-routing costs an answer and over-routing costs cents.
 TIER_ORDER = {Complexity.TRIVIAL: 0, Complexity.STANDARD: 1, Complexity.COMPLEX: 2}
 _CODE_FENCE_RE = re.compile(r"```|\n\s{4}\S|<[a-z]+>.*?</[a-z]+>", re.DOTALL)
+_BLOCK_SPLIT_RE = re.compile(r"\n\s*\n")
 
 # Weights. Tuned against evals/golden/routing.jsonl; see docs/BENCHMARKS.md.
 W_WORKFLOW_HINT = 3.0
@@ -280,6 +296,28 @@ def _imperative_verbs(lowered: str) -> set[str]:
     return heads
 
 
+def _task_text(text: str) -> str:
+    """The instruction, separated from the material pasted under it (issue #12).
+
+    A GTM prompt is usually an instruction followed by a blank line and the thing
+    to work on: a quote, an email thread, a support note. Those are two different
+    quantities and the classifier was conflating them. "Who is the economic buyer
+    here? Name only." is a trivial extraction whether the email pasted beneath it
+    runs to eighty tokens or eight hundred — the payload is how much material the
+    task operates on, not how hard the task is. Measuring the prior over the
+    whole prompt made every extraction-with-context read as `medium`, which is
+    most of what the hard slice is built from.
+
+    The first block wins because that is where an instruction sits in all 55
+    multi-block prompts in the golden corpus. A prompt that puts its instruction
+    *last* gets a worse prior from this, which is survivable: the lexical signals
+    below still scan the full text, and a prior is discounted to 0.4 whenever any
+    of them fire.
+    """
+    blocks = [block for block in _BLOCK_SPLIT_RE.split(text) if block.strip()]
+    return blocks[0] if len(blocks) > 1 else text
+
+
 class Classifier:
     """Heuristic-first complexity classifier with an optional LLM tie-break."""
 
@@ -302,7 +340,8 @@ class Classifier:
         """Classify with zero I/O. Pure: same request in, same verdict out."""
         text = _prompt_text(req)
         lowered = text.lower()
-        words = set(_WORD_RE.findall(lowered))
+        task_lowered = _task_text(lowered)
+        words = set(_WORD_RE.findall(task_lowered))
         scores: dict[Complexity, float] = {}
         features: list[str] = []
 
@@ -321,7 +360,12 @@ class Classifier:
         # analysis model — the drafting verb is subordinate work and must not
         # drag the tier down. Imperatives score double a mention elsewhere, so
         # "summarize the forecast call" reads as drafting, not forecasting.
-        imperatives = _imperative_verbs(lowered)
+        #
+        # Read off the task, never the payload. A pasted quote that says the
+        # "customer is threatening to shorten the term" is describing the
+        # customer, not asking anyone to shorten anything, and counting it let a
+        # payload noun-phrase out-vote the "analyze" the caller actually wrote.
+        imperatives = _imperative_verbs(task_lowered)
         verb_scores: list[tuple[float, Complexity, list[str]]] = []
         for tier, lexicon in (
             (Complexity.TRIVIAL, TRIVIAL_VERBS),
@@ -362,7 +406,12 @@ class Classifier:
             _add(scores, Complexity.COMPLEX, W_MANY_QUESTIONS)
             features.append(f"questions:{questions}")
 
-        if _DIGIT_RE.search(lowered) and any(cue in lowered for cue in ARITHMETIC_CUES):
+        # Arithmetic is read off the instruction alone. A pasted quote says
+        # "Total $840,000" and "Discount applied: 22%" because that is what a
+        # quote contains, not because anyone asked for a calculation — scanning
+        # the payload made "what's the discount percentage? Number only" score as
+        # complex analysis.
+        if _DIGIT_RE.search(task_lowered) and any(cue in task_lowered for cue in ARITHMETIC_CUES):
             _add(scores, Complexity.COMPLEX, W_ARITHMETIC)
             features.append("arithmetic")
 
@@ -371,7 +420,12 @@ class Classifier:
         lexical = bool(scores)
         length_weight = LENGTH_DISCOUNT_WHEN_LEXICAL if lexical else 1.0
 
-        tokens = estimate_tokens(text)
+        # Short/medium is a statement about the instruction; `long` stays a
+        # statement about the whole payload, because at that size processing the
+        # material genuinely is the work.
+        tokens = estimate_tokens(_task_text(text))
+        if estimate_tokens(text) > LONG_TOKENS:
+            tokens = estimate_tokens(text)
         if tokens < SHORT_TOKENS:
             _add(scores, Complexity.TRIVIAL, W_SHORT * length_weight)
             features.append(f"short:{tokens}")

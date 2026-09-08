@@ -17,20 +17,22 @@ $0.0000 — a figure the report prints rather than assumes.
 ## The headline numbers
 
 Measured by `conduit-eval run` against the `mock` provider, at the commit that
-closed #13:
+closed #12:
 
 | Suite | Cases | Pass rate | Mean score | Errors | Cost |
 |---|---:|---:|---:|---:|---:|
-| routing | 105 | 82.9% | 0.829 | 0 | $0.0000 |
+| routing | 105 | 88.6% | 0.886 | 0 | $0.0000 |
 | guards | 60 | 98.3% | 0.983 | 0 | $0.0000 |
 | l2c_quality | 20 | 25.0% | 0.558 | 0 | $0.0000 |
 
-One epic acceptance criterion still does not hold once the data is authored
-independently of the component it measures. It is stated here rather than
-worked around, because the point of this plane is to produce numbers that can
-be wrong.
+Both of the criteria this plane was built to test now hold, and both are worth
+less than their number suggests, for the same reason: each was closed by a
+change made in response to the cases it failed. The caveats are stated here
+rather than worked around, because the point of this plane is to produce
+numbers that can be wrong.
 
-- **AC-4 (tier agreement ≥85%) is unmet at 82.9%.**
+- **AC-4 (tier agreement ≥85%) holds at 88.6%**, up from 82.9%. See
+  [why the routing number moved](#why-the-routing-number-moved-from-100-to-829-and-back-to-886).
 - **AC-9 (injection detection ≥90%) now holds at 100% recall, but the slice is
   no longer held out.** It was 70.0% when the corpus was fresh; #13 then
   extended the pattern set in response to the nine specific misses, which is
@@ -39,7 +41,7 @@ be wrong.
   companion target — ≤10% false positives — is still met at 0.0% of 20 benign
   business prompts.
 
-## Why the routing number moved from 100% to 82.9%
+## Why the routing number moved from 100% to 82.9%, and back to 88.6%
 
 The #4 router agent wrote `evals/golden/routing.jsonl` *and* tuned the
 classifier's lexicons against it in the same change. Its reported 100% tier
@@ -63,20 +65,93 @@ buried in a long paragraph, planning language attached to a single lookup.
 Nothing in them was chosen to defeat any particular lexicon, because the
 lexicons were never read.
 
-The result splits cleanly, which is what makes it diagnostic rather than merely
+The result split cleanly, which is what made it diagnostic rather than merely
 disappointing:
 
-| Slice | Origin | Cases | Pass rate |
-|---|---|---:|---:|
-| canonical | inherited from #4, relabelled under #8 | 60 | 98.3% |
-| hard | written under #8 | 45 | 62.2% |
-| **all** | | **105** | **82.9%** |
+| Slice | Origin | Cases | Before #12 | After #12 |
+|---|---|---:|---:|---:|
+| canonical | inherited from #4, relabelled under #8 | 60 | 98.3% | **100%** |
+| hard | written under #8 | 45 | 62.2% | **73.3%** |
+| **all** | | **105** | **82.9%** | **88.6%** |
 
-The classifier holds at 98.3% on prompts that look like their tier and drops to
-62.2% on prompts that do not. Its failure mode is legible in the report: the
-misses cluster at confidence 0.67 (`complex` work read as `trivial` because it
+The failure mode was legible in the report, which is what made it fixable: the
+misses clustered at confidence 0.67 (`complex` work read as `trivial` because it
 is short and imperative) and 0.27 (`trivial` work read as `standard` because it
-is long). It is a surface-form classifier, and it was measured on surface form.
+is long). Both clusters turned out to be one bug, and not a lexicon bug.
+
+### What #12 actually changed
+
+A GTM prompt is nearly always an instruction, a blank line, and the material to
+work on — a quote, a thread, a support note. The classifier was reading all of
+it as the request. So a pasted quote contributed its digits and its "Discount
+applied: 22%" to the *arithmetic* cue, its length to the *length prior*, and any
+verb inside it to the *verb evidence*. `hard-002` asks "Who is the economic
+buyer here? Name only." under a long email and was routed `standard`; it is a
+field lookup no matter how long the email is.
+
+The fix is one distinction — `_task_text()` in `router/classifier.py`, the first
+block of the prompt — applied in three places: the arithmetic cue and the verb
+lexicons read the task only, and `short`/`medium` became statements about the
+instruction. `long` deliberately still reads the whole prompt, because past a
+certain size processing the material genuinely is the work.
+
+That accounts for most of the gain and it *raised* the canonical slice to 60/60
+while lifting the hard slice, which is the signature of a bug fixed rather than
+a corpus fitted. The rest is seven summarisation verbs added to `STANDARD_VERBS`
+(recap, gist, condense, tighten, reword, restate, shorten), worth 30→33 on the
+hard slice. Four structured-output markers were tried in the same pass and
+reverted: they changed the feature vector on nine cases and the verdict on none,
+so they were surface with nothing behind it.
+
+One case, `route-055`, is worth recording because it nearly shipped as a
+regression. Adding "shorten" to `STANDARD_VERBS` broke a canonical complex case
+whose *payload* said the "customer is threatening to shorten the term" — a verb
+describing the customer, counted as if it were the request, out-voting the
+"analyze" the caller had actually written. It was the same bug in a third place,
+which is why verb evidence is now scoped to the task as well.
+
+### What the 88.6% is and is not worth
+
+The same caveat as the guards number, and it belongs next to it. `hard` was
+written under #8 to defeat the classifier's lexicons; #12 then changed the
+classifier having read the cases it failed. That makes 88.6% an upper bound on
+this corpus rather than an agreement rate on GTM traffic.
+
+`tests/test_routing_holdout.py` is the part that is not fitted. It asserts the
+property the fix claims rather than more labelled prompts: pasting material
+under a task must not change the task's tier. Fourteen unseen instructions are
+each classified alone and then under three adversarial payloads — a quote full
+of digits, a thread whose speakers say "shorten", a note containing "summarize
+and compare" — and the tier has to hold. Run against the pre-#12 classifier it
+fails exactly where the theory predicts: `Pull the PO number out of this email.`
+is `trivial` alone and becomes `complex` once a quote is pasted beneath it, a
+top-tier model for a field lookup. A lexicon patch cannot fake that property,
+which is the argument for testing it instead of adding twenty more prompts.
+
+### What is left
+
+Ten of the twelve remaining misses produce *no lexical evidence at all* — their
+entire feature vector is the length prior (`short:16`, `medium:35`). "Give me an
+order of operations for closing this by the 30th" is complex planning in nine
+plain words that hit no lexicon. These are not lexicon gaps to be filled one
+phrase at a time; that is how the corpus gets fitted. They are the case the
+stage-2 LLM tie-break exists for, and the confidence they carry (0.67 from a
+bare length prior) is arguably the thing to fix — it is too high for a verdict
+resting on nothing but word count.
+
+Flipping the no-evidence default from `trivial` to `standard` was measured and
+rejected: it trades 7 correct trivial routes for 9 correct standard ones, a net
++2 on this corpus, and raises cost on every unremarkable short prompt in
+production — which is most of them, and the source of the 50.8% saving.
+
+Two numbers moved as a side effect of #12, both because the classifier stopped
+inflating the tier of short tasks carrying long payloads. Cost reduction went
+47.5% → **50.8%**, and stage-1 resolution went 81.0% → **91.4%**: the payload
+was pushing cases into the confidence band that triggers the LLM tie-break, so
+20 escalations became 9. Cheaper routing and fewer escalation calls were not the
+goal of #12 and are not evidence for it — they follow arithmetically from the
+same distribution shift, and are recorded here so the movement in
+`docs/BENCHMARKS.md` is attributable.
 
 Provenance is asserted, not just described. Every routing case records
 `origin` and `labeler` in its metadata, and
@@ -85,16 +160,21 @@ fails if the hard slice is ever quietly dropped to lift the average.
 
 ### What was done about the failing floor
 
-`tests/test_routing_eval.py` enforces `ACCURACY_FLOOR = 0.85`. The floor was
-**not** lowered to the measured value; that would convert a finding into a
-formality. The test is marked `xfail(strict=True)` naming the three numbers, so
-it fails again the moment the classifier improves past the floor and the mark
-becomes untrue. A companion test runs the same benchmark over the canonical
-slice only, so a genuine regression on the inherited data is still caught while
-the mark stands.
+`tests/test_routing_eval.py` enforces `ACCURACY_FLOOR = 0.85`. While the floor
+was unmet it was **not** lowered to the measured value — that converts a finding
+into a formality. Instead the test carried `xfail(strict=True)` naming all three
+numbers, so it would fail the moment the classifier improved past the floor and
+the mark became untrue.
 
-Closing the gap is #4's work, not the eval plane's. The eval plane's job was to
-find it.
+It did exactly that under #12: the tripwire fired as an `XPASS(strict)` failure
+in the same run that first cleared 85%, which is the only reason the number
+could not be quietly banked. The mark is now gone, replaced by per-slice floors
+(`CANONICAL_FLOOR = 0.95`, `HARD_FLOOR = 0.70`) — because a single figure over
+both slices can hide a canonical regression behind a hard-slice gain, which is
+precisely the trade the first #12 patch made before the split caught it.
+
+Those floors are regression tripwires, not targets. One pinned to the measured
+value fails on noise; one raised to a goal fails on work not yet done.
 
 ## The guard corpus
 

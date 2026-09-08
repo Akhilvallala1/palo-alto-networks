@@ -16,6 +16,8 @@ from conduit.router.policy import RoutingPolicy
 from router_fakes import FakeProvider
 
 ACCURACY_FLOOR = 0.85
+CANONICAL_FLOOR = 0.95
+HARD_FLOOR = 0.70
 HEURISTIC_FLOOR = 0.80
 SAVINGS_FLOOR = 40.0
 
@@ -41,33 +43,39 @@ def test_golden_set_is_well_formed_and_covers_every_tier() -> None:
         assert 0.2 <= share <= 0.5
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "AC-4 is unmet on independently labelled data. Issue #8 re-authored "
-        "evals/golden/routing.jsonl: the 60 inherited inputs were relabelled from the "
-        "tier definitions in docs/SPEC.md (all 60 labels agreed with #4's) and 45 "
-        "independently written cases were added whose surface form does not telegraph "
-        "the tier. Agreement is 82.9% overall — 98.3% on the inherited slice, 62.2% on "
-        "the new one. The floor stays at 85% rather than being lowered to the measured "
-        "value; see docs/EVAL.md. Remove this marker when the classifier clears it."
-    ),
-)
 def test_tier_assignment_agrees_with_the_golden_labels(result: BenchmarkResult) -> None:
+    """AC-4, met at 88.6% since issue #12 (this carried a strict xfail before it).
+
+    The marker is gone rather than re-pointed: it existed to fail the moment the
+    classifier cleared 85%, which is what happened. What replaced it is the pair
+    of per-slice floors below, because one number over both slices can hide a
+    canonical regression behind a hard-slice gain — which is exactly the trade
+    the first #12 patch made before it was caught.
+    """
     assert result.accuracy >= ACCURACY_FLOOR, f"{result.accuracy:.1%} < {ACCURACY_FLOOR:.0%}"
 
 
-def test_tier_assignment_still_clears_the_floor_on_the_inherited_slice() -> None:
-    """Localises the regression above: the drop is in the new cases, not the old.
+@pytest.mark.parametrize(
+    ("slice_name", "count", "floor"),
+    [("canonical", 60, CANONICAL_FLOOR), ("hard", 45, HARD_FLOOR)],
+)
+def test_tier_assignment_clears_the_floor_on_each_slice(
+    slice_name: str, count: int, floor: float
+) -> None:
+    """Per-slice floors, because the two slices measure different things.
 
-    Without this the xfail would be indistinguishable from the classifier having
-    broken outright.
+    `canonical` is prompts whose wording matches their tier, and the classifier
+    gets all 60 — a miss there is a real break, so its floor sits high. `hard` is
+    prompts whose surface form does not telegraph the tier, measured at 73.3%;
+    its floor sits below that on purpose. These are regression tripwires, not
+    targets: a floor pinned to the measured value fails on noise, and a floor
+    raised to a goal fails on work not yet done.
     """
     config = load_config()
-    records = [r for r in load_golden() if r.metadata.get("slice") == "canonical"]
-    assert len(records) == 60
+    records = [r for r in load_golden() if r.metadata.get("slice") == slice_name]
+    assert len(records) == count
     result = run_benchmark(RoutingPolicy(config.routing, config.models), config.models, records)
-    assert result.accuracy >= ACCURACY_FLOOR, f"{result.accuracy:.1%} < {ACCURACY_FLOOR:.0%}"
+    assert result.accuracy >= floor, f"{slice_name}: {result.accuracy:.1%} < {floor:.0%}"
 
 
 def test_heuristic_resolves_the_golden_set_without_llm_calls(result: BenchmarkResult) -> None:

@@ -37,10 +37,10 @@ async def test_the_routing_suite_reports_per_case_pass_fail(harness: EvalHarness
     assert len(result.cases) == result.total
     assert all(case.actual in {"trivial", "standard", "complex"} for case in result.cases)
     # The honest measured number, and where the loss is. See docs/EVAL.md.
-    assert result.pass_rate == pytest.approx(0.829, abs=0.005)
+    assert result.pass_rate == pytest.approx(0.886, abs=0.005)
     by_slice = {stat.name: stat.pass_rate for stat in result.slices()}
-    assert by_slice["canonical"] == pytest.approx(0.983, abs=0.005)
-    assert by_slice["hard"] == pytest.approx(0.622, abs=0.005)
+    assert by_slice["canonical"] == pytest.approx(1.0)
+    assert by_slice["hard"] == pytest.approx(0.733, abs=0.005)
 
 
 async def test_the_guard_suite_measures_recall_and_false_positives(

@@ -8,22 +8,22 @@
 
 - Dataset: `evals/golden/routing.jsonl` — 105 labelled requests
 - Assumed completion length: 400 tokens; prompt tokens estimated at 4 characters per token
-- Tier agreement with the golden labels: **82.9%** (epic AC-4 target: >=85%)
-- Resolved by the heuristic alone, zero LLM tie-break calls: **81.0%** (epic AC-6 target: >=80%)
+- Tier agreement with the golden labels: **88.6%** (epic AC-4 target: >=85%)
+- Resolved by the heuristic alone, zero LLM tie-break calls: **91.4%** (epic AC-6 target: >=80%)
 
 ### Cost per 1,000 requests
 
 | Tier | Primary model | Requests | Share | $/1k requests at this tier |
 |---|---|---:|---:|---:|
-| trivial | `claude-haiku-4-5-20251001` | 37 | 35.2% | $2.03 |
-| standard | `claude-sonnet-5` | 34 | 32.4% | $4.09 |
-| complex | `claude-opus-5` | 34 | 32.4% | $10.25 |
+| trivial | `claude-haiku-4-5-20251001` | 45 | 42.9% | $2.03 |
+| standard | `claude-sonnet-5` | 29 | 27.6% | $4.10 |
+| complex | `claude-opus-5` | 31 | 29.5% | $10.24 |
 
 | Strategy | $/1k requests |
 |---|---:|
 | All traffic to `complex` (`claude-opus-5`) | $10.21 |
-| Conduit complexity routing | $5.36 |
-| **Reduction** | **47.5%** (epic AC-5 target: >=40%) |
+| Conduit complexity routing | $5.03 |
+| **Reduction** | **50.8%** (epic AC-5 target: >=40%) |
 
 ### Where the classifier disagrees with the labels
 
@@ -32,12 +32,9 @@
 | complex | complex | 31 |
 | complex | standard ⚠ | 2 |
 | complex | trivial ⚠ | 4 |
-| standard | complex ⚠ | 2 |
 | standard | standard | 27 |
-| standard | trivial ⚠ | 4 |
-| trivial | complex ⚠ | 1 |
-| trivial | standard ⚠ | 5 |
-| trivial | trivial | 29 |
+| standard | trivial ⚠ | 6 |
+| trivial | trivial | 35 |
 
 ### Method
 
@@ -53,8 +50,13 @@
 - The golden set was re-authored under issue #8 without reading the classifier's
   lexicons, and extended with 45 cases whose surface form is uncorrelated with
   tier, so agreement is now measured rather than self-graded. It fell from 100%
-  to 82.9% when the corpus stopped confirming its author; see `docs/EVAL.md`.
-- Stage 2 escalated 20 of 105 prompts here, so the cost
+  to 82.9% when the corpus stopped confirming its author, and issue #12 took it
+  to 88.6% by reading the task separately from the material pasted under it.
+- That last number is fitted: #12 changed the classifier having read the cases
+  it failed, so treat it as an upper bound on this corpus rather than an
+  agreement rate on live traffic. `tests/test_routing_holdout.py` is the
+  unfitted check; `docs/EVAL.md` carries the full accounting.
+- Stage 2 escalated 9 of 105 prompts here, so the cost
   above is very nearly the pure stage-1 cost. Escalating traffic adds one
   cheapest-tier call per distinct prompt hash, cached thereafter.
 - Prices are list rates from `config/models.yaml` with no prompt caching applied;

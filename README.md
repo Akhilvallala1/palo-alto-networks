@@ -85,10 +85,12 @@ would against a frontier model.
 
 | Claim | Target | Measured | |
 |---|---:|---:|---|
-| Cost reduction vs all-`opus` routing | ≥40% | **47.5%** | met |
-| Router tier agreement | ≥85% | **82.9%** | **not met** ([#12](../../issues/12)) |
-| — on prompts whose wording matches their tier | | 98.3% | |
-| — on prompts where it does not | | 62.2% | |
+| Cost reduction vs all-`opus` routing | ≥40% | **50.8%** | met |
+| Router tier agreement | ≥85% | **88.6%** | met, see below |
+| — on prompts whose wording matches their tier | | 100% | |
+| — on prompts where it does not | | 73.3% | |
+| — same corpus before [#12](../../issues/12) | | 82.9% | |
+| — held-out probe, 14 tasks × 3 payloads | | 56/56 | |
 | Prompt-injection detection | ≥90% | **100%** | met, but fitted — see below |
 | — same corpus before [#13](../../issues/13) closed the gap | | 70.0% | |
 | — held-out probe, 26 unseen phrasings | | 26/26 | |
@@ -98,10 +100,28 @@ would against a frontier model.
 The routing number was 100% until issue #8 re-authored the golden labels without
 reading the classifier's lexicons and added 45 cases whose surface form does not
 advertise their tier. The labels were all correct; the *corpus* was written by
-someone who knew the answers. Agreement fell to 82.9% and the gap is where the
-work is. `tests/test_routing_eval.py` holds a strict `xfail` naming these
-numbers, so the test fails as soon as the classifier improves and the target is
-closed deliberately. See `docs/EVAL.md`.
+someone who knew the answers, and agreement fell to 82.9%.
+
+What closed the gap was one bug, not a bigger lexicon. A GTM prompt is an
+instruction, a blank line, and the material to work on, and the classifier was
+reading all of it as the request — so a pasted quote donated its digits to the
+arithmetic cue, its length to the length prior, and its verbs to the verb
+evidence. "Who is the economic buyer here? Name only." is a field lookup however
+long the email under it runs. Separating the two lifted the hard slice to 73.3%
+*and* took canonical to 60/60, which is what a fix looks like as opposed to a
+fitting. The strict `xfail` that named the old numbers did its job on the way
+past: it failed as an `XPASS` the moment the classifier cleared 85%, so the
+improvement had to be closed deliberately. Per-slice floors replaced it.
+
+The caveat is the same one the injection number carries. #12 changed the
+classifier having read the cases it failed, so 88.6% is an upper bound on that
+corpus. `tests/test_routing_holdout.py` is the part that is not fitted: it
+asserts the property rather than more labels — pasting material under a task
+must not change the task's tier — and against the pre-#12 classifier it fails
+where the theory says it should, with `Pull the PO number out of this email.`
+going from `trivial` to `complex` once a quote is pasted beneath it. Ten of the
+twelve remaining misses produce no lexical evidence at all and are the case the
+stage-2 tie-break exists for. See `docs/EVAL.md`.
 
 The injection number moved the other way, and the caveat matters more than the
 number. All nine misses at 70.0% scored a *pattern* score of exactly 0.00, which
@@ -138,7 +158,7 @@ apps/l2c/        the lead-to-cash workflow (LangGraph + sqlite-vec RAG)
 
 ```bash
 pip install -e ".[dev]"
-pytest -q                        # 882 passed, 4 skipped, 1 xfailed
+pytest -q                        # 941 passed, 4 skipped
 mypy --strict src/conduit apps   # 57 source files
 ruff check src tests apps evals scripts
 conduit-eval run                 # offline; judges against mock:echo, costs $0
