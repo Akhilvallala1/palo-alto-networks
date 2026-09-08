@@ -1,0 +1,100 @@
+{"id": "pii-001", "text": "Please email the renewal quote to jane.doe@acmecorp.com before Friday.", "entities": [{"type": "EMAIL_ADDRESS", "value": "jane.doe@acmecorp.com"}]}
+{"id": "pii-002", "text": "Billing contact is r.okafor+ap@northwind-industries.co.uk for all invoices.", "entities": [{"type": "EMAIL_ADDRESS", "value": "r.okafor+ap@northwind-industries.co.uk"}]}
+{"id": "pii-003", "text": "Loop in procurement at sourcing_team@globex.io on the counter-signature.", "entities": [{"type": "EMAIL_ADDRESS", "value": "sourcing_team@globex.io"}]}
+{"id": "pii-004", "text": "The AE forwarded it from a.chen@initech.example.com yesterday.", "entities": [{"type": "EMAIL_ADDRESS", "value": "a.chen@initech.example.com"}]}
+{"id": "pii-005", "text": "Send the redlines to legal-ops@umbrella-health.org and cc finance.", "entities": [{"type": "EMAIL_ADDRESS", "value": "legal-ops@umbrella-health.org"}]}
+{"id": "pii-006", "text": "Escalation alias is noc99@stark-systems.net during the migration window.", "entities": [{"type": "EMAIL_ADDRESS", "value": "noc99@stark-systems.net"}]}
+{"id": "pii-007", "text": "Their desk line is 415-555-0199 if you need a same-day signature.", "entities": [{"type": "PHONE_NUMBER", "value": "415-555-0199"}]}
+{"id": "pii-008", "text": "Call (206) 555-0147 to confirm the shipping address on the order.", "entities": [{"type": "PHONE_NUMBER", "value": "(206) 555-0147"}]}
+{"id": "pii-009", "text": "Mobile listed on the record is +1 312 555 0142 for urgent approvals.", "entities": [{"type": "PHONE_NUMBER", "value": "+1 312 555 0142"}]}
+{"id": "pii-010", "text": "Reception can be reached at 617.555.0163 during business hours.", "entities": [{"type": "PHONE_NUMBER", "value": "617.555.0163"}]}
+{"id": "pii-011", "text": "The EMEA desk is +44 20 7946 0958 and answers until 18:00 GMT.", "entities": [{"type": "PHONE_NUMBER", "value": "+44 20 7946 0958"}]}
+{"id": "pii-012", "text": "Fax the signed order form to 972-555-0188 or upload it to the portal.", "entities": [{"type": "PHONE_NUMBER", "value": "972-555-0188"}]}
+{"id": "pii-013", "text": "Vendor onboarding form lists SSN 123-45-6789 which we should not store.", "entities": [{"type": "US_SSN", "value": "123-45-6789"}]}
+{"id": "pii-014", "text": "The contractor record shows 987-65-4320 in the tax identifier column.", "entities": [{"type": "US_SSN", "value": "987-65-4320"}]}
+{"id": "pii-015", "text": "Payroll flagged social security number 234567891 as unmasked in the export.", "entities": [{"type": "US_SSN", "value": "234567891"}]}
+{"id": "pii-016", "text": "Their SSN: 456-78-9012 appears in the scanned W-9 attachment.", "entities": [{"type": "US_SSN", "value": "456-78-9012"}]}
+{"id": "pii-017", "text": "Card on file for the renewal is 4111 1111 1111 1111 expiring next spring.", "entities": [{"type": "CREDIT_CARD", "value": "4111 1111 1111 1111"}]}
+{"id": "pii-018", "text": "Payment failed for 5500-0000-0000-0004 so the subscription lapsed.", "entities": [{"type": "CREDIT_CARD", "value": "5500-0000-0000-0004"}]}
+{"id": "pii-019", "text": "The AmEx ending in the file is 378282246310005 per the finance ticket.", "entities": [{"type": "CREDIT_CARD", "value": "378282246310005"}]}
+{"id": "pii-020", "text": "Charge the balance to 6011000990139424 and email the receipt.", "entities": [{"type": "CREDIT_CARD", "value": "6011000990139424"}]}
+{"id": "pii-021", "text": "Backup card 4012888888881881 is stored against the same billing account.", "entities": [{"type": "CREDIT_CARD", "value": "4012888888881881"}]}
+{"id": "pii-022", "text": "Wire the deposit to GB82WEST12345698765432 and reference the PO.", "entities": [{"type": "IBAN_CODE", "value": "GB82WEST12345698765432"}]}
+{"id": "pii-023", "text": "Their EU entity settles from DE89370400440532013000 each quarter.", "entities": [{"type": "IBAN_CODE", "value": "DE89370400440532013000"}]}
+{"id": "pii-024", "text": "Remittance account FR1420041010050500013M02606 is on the signed contract.", "entities": [{"type": "IBAN_CODE", "value": "FR1420041010050500013M02606"}]}
+{"id": "pii-025", "text": "Treasury confirmed NL91ABNA0417164300 for the annual prepayment.", "entities": [{"type": "IBAN_CODE", "value": "NL91ABNA0417164300"}]}
+{"id": "pii-026", "text": "Our AE Jane Doe closed the expansion two days ahead of forecast.", "entities": [{"type": "PERSON", "value": "Jane Doe"}]}
+{"id": "pii-027", "text": "The order form was signed by Marcus Whitfield on the buyer side.", "entities": [{"type": "PERSON", "value": "Marcus Whitfield"}]}
+{"id": "pii-028", "text": "Primary contact Priya Raghunathan wants the security review scheduled.", "entities": [{"type": "PERSON", "value": "Priya Raghunathan"}]}
+{"id": "pii-029", "text": "Please reach out to Daniel Okonkwo about the multi-year discount.", "entities": [{"type": "PERSON", "value": "Daniel Okonkwo"}]}
+{"id": "pii-030", "text": "The deal was approved by Elena Vasquez in the Q3 exception review.", "entities": [{"type": "PERSON", "value": "Elena Vasquez"}]}
+{"id": "pii-031", "text": "Dr. Amina Bello runs the clinical team evaluating our platform.", "entities": [{"type": "PERSON", "value": "Amina Bello"}]}
+{"id": "pii-032", "text": "Escalate to Thomas Fitzgerald if the renewal slips past month end.", "entities": [{"type": "PERSON", "value": "Thomas Fitzgerald"}]}
+{"id": "pii-033", "text": "The quote is prepared for Sofia Lindqvist at the buyer's request.", "entities": [{"type": "PERSON", "value": "Sofia Lindqvist"}]}
+{"id": "pii-034", "text": "Their CSM Hiroshi Tanaka flagged three open support tickets.", "entities": [{"type": "PERSON", "value": "Hiroshi Tanaka"}]}
+{"id": "pii-035", "text": "Renewal was assigned to Grace O'Sullivan after the territory change.", "entities": [{"type": "PERSON", "value": "Grace O'Sullivan"}]}
+{"id": "pii-036", "text": "Mr. Alvarez asked for a revised payment schedule before signature.", "entities": [{"type": "PERSON", "value": "Alvarez"}]}
+{"id": "pii-037", "text": "Thanks,\nKwame Mensah", "entities": [{"type": "PERSON", "value": "Kwame Mensah"}]}
+{"id": "pii-038", "text": "Opportunity 006Ax000001BcDe is stuck in negotiation for 41 days.", "entities": [{"type": "GTM_OPPORTUNITY_ID", "value": "006Ax000001BcDe"}]}
+{"id": "pii-039", "text": "Pull the amount history for 006R0000012XyZa before the forecast call.", "entities": [{"type": "GTM_OPPORTUNITY_ID", "value": "006R0000012XyZa"}]}
+{"id": "pii-040", "text": "OPP-448201 was created from the inbound demo request last week.", "entities": [{"type": "GTM_OPPORTUNITY_ID", "value": "OPP-448201"}]}
+{"id": "pii-041", "text": "Close-date slipped on 006D000001LmNoP per the pipeline review.", "entities": [{"type": "GTM_OPPORTUNITY_ID", "value": "006D000001LmNoP"}]}
+{"id": "pii-042", "text": "Finance needs the margin math for OPP-99120 before approving.", "entities": [{"type": "GTM_OPPORTUNITY_ID", "value": "OPP-99120"}]}
+{"id": "pii-043", "text": "Quote Q-2026-0442 carries a 27 percent discount that needs VP sign-off.", "entities": [{"type": "GTM_QUOTE_NUMBER", "value": "Q-2026-0442"}]}
+{"id": "pii-044", "text": "Supersede QUO-1004821 with the revised three-year term.", "entities": [{"type": "GTM_QUOTE_NUMBER", "value": "QUO-1004821"}]}
+{"id": "pii-045", "text": "The customer is comparing Q-2025-9981 against the new bundle price.", "entities": [{"type": "GTM_QUOTE_NUMBER", "value": "Q-2025-9981"}]}
+{"id": "pii-046", "text": "QT-2210045 expired before the buyer returned the signature page.", "entities": [{"type": "GTM_QUOTE_NUMBER", "value": "QT-2210045"}]}
+{"id": "pii-047", "text": "Regenerate QUO-2200194 with the updated ramp schedule attached.", "entities": [{"type": "GTM_QUOTE_NUMBER", "value": "QUO-2200194"}]}
+{"id": "pii-048", "text": "Contact Jane Doe at jane.doe@acmecorp.com or 415-555-0199 about Q-2026-0442.", "entities": [{"type": "PERSON", "value": "Jane Doe"}, {"type": "EMAIL_ADDRESS", "value": "jane.doe@acmecorp.com"}, {"type": "PHONE_NUMBER", "value": "415-555-0199"}, {"type": "GTM_QUOTE_NUMBER", "value": "Q-2026-0442"}]}
+{"id": "pii-049", "text": "Opportunity 006Ax000001BcDe is owned by Priya Raghunathan; quote QUO-1004821 attached.", "entities": [{"type": "GTM_OPPORTUNITY_ID", "value": "006Ax000001BcDe"}, {"type": "PERSON", "value": "Priya Raghunathan"}, {"type": "GTM_QUOTE_NUMBER", "value": "QUO-1004821"}]}
+{"id": "pii-050", "text": "Refund the card 4111 1111 1111 1111 and notify billing@globex.io by phone at (206) 555-0147.", "entities": [{"type": "CREDIT_CARD", "value": "4111 1111 1111 1111"}, {"type": "EMAIL_ADDRESS", "value": "billing@globex.io"}, {"type": "PHONE_NUMBER", "value": "(206) 555-0147"}]}
+{"id": "pii-051", "text": "Onboarding packet for Daniel Okonkwo lists SSN 123-45-6789 and IBAN NL91ABNA0417164300.", "entities": [{"type": "PERSON", "value": "Daniel Okonkwo"}, {"type": "US_SSN", "value": "123-45-6789"}, {"type": "IBAN_CODE", "value": "NL91ABNA0417164300"}]}
+{"id": "pii-052", "text": "Attn: Sofia Lindqvist -- wire to DE89370400440532013000 referencing OPP-448201.", "entities": [{"type": "PERSON", "value": "Sofia Lindqvist"}, {"type": "IBAN_CODE", "value": "DE89370400440532013000"}, {"type": "GTM_OPPORTUNITY_ID", "value": "OPP-448201"}]}
+{"id": "pii-053", "text": "Summarize the thread with elena.vasquez@umbrella-health.org about QT-2210045.", "entities": [{"type": "EMAIL_ADDRESS", "value": "elena.vasquez@umbrella-health.org"}, {"type": "GTM_QUOTE_NUMBER", "value": "QT-2210045"}]}
+{"id": "pii-054", "text": "Draft a renewal note to Marcus Whitfield covering 006R0000012XyZa and 617.555.0163.", "entities": [{"type": "PERSON", "value": "Marcus Whitfield"}, {"type": "GTM_OPPORTUNITY_ID", "value": "006R0000012XyZa"}, {"type": "PHONE_NUMBER", "value": "617.555.0163"}]}
+{"id": "pii-055", "text": "Our AE Jane Doe asked twice; forward Jane Doe the signed copy at jane.doe@acmecorp.com.", "entities": [{"type": "PERSON", "value": "Jane Doe"}, {"type": "EMAIL_ADDRESS", "value": "jane.doe@acmecorp.com"}]}
+{"id": "pii-056", "text": "Card 5500-0000-0000-0004 declined; the AE Hiroshi Tanaka will call +44 20 7946 0958.", "entities": [{"type": "CREDIT_CARD", "value": "5500-0000-0000-0004"}, {"type": "PERSON", "value": "Hiroshi Tanaka"}, {"type": "PHONE_NUMBER", "value": "+44 20 7946 0958"}]}
+{"id": "pii-057", "text": "Prepared by Thomas Fitzgerald; questions to deals-desk@stark-systems.net.", "entities": [{"type": "PERSON", "value": "Thomas Fitzgerald"}, {"type": "EMAIL_ADDRESS", "value": "deals-desk@stark-systems.net"}]}
+{"id": "pii-058", "text": "Compliance found 987-65-4320 and 378282246310005 in the same uploaded PDF.", "entities": [{"type": "US_SSN", "value": "987-65-4320"}, {"type": "CREDIT_CARD", "value": "378282246310005"}]}
+{"id": "pii-059", "text": "Quote Q-2025-9981 for opportunity OPP-99120 needs Dr. Amina Bello to approve.", "entities": [{"type": "GTM_QUOTE_NUMBER", "value": "Q-2025-9981"}, {"type": "GTM_OPPORTUNITY_ID", "value": "OPP-99120"}, {"type": "PERSON", "value": "Amina Bello"}]}
+{"id": "pii-060", "text": "Reply to grace.osullivan@northwind-industries.co.uk and copy 972-555-0188 on file.", "entities": [{"type": "EMAIL_ADDRESS", "value": "grace.osullivan@northwind-industries.co.uk"}, {"type": "PHONE_NUMBER", "value": "972-555-0188"}]}
+{"id": "pii-061", "text": "Summarize the renewal risk for the enterprise segment this quarter.", "entities": []}
+{"id": "pii-062", "text": "Acme Corporation renewed at 12 percent uplift across all three regions.", "entities": []}
+{"id": "pii-063", "text": "Northwind Industries and Globex Systems are both in the competitive set.", "entities": []}
+{"id": "pii-064", "text": "Please contact Support Team about the outstanding provisioning ticket.", "entities": []}
+{"id": "pii-065", "text": "The account owner is Sales Operations until the territory rebalance.", "entities": []}
+{"id": "pii-066", "text": "Escalate to Legal Department if the indemnity language is rejected.", "entities": []}
+{"id": "pii-067", "text": "Our discount policy caps standard deals at 20 percent off list price.", "entities": []}
+{"id": "pii-068", "text": "Order 4455667788 shipped on Tuesday from the Dallas distribution center.", "entities": []}
+{"id": "pii-069", "text": "The contract term is 36 months with a 2026-09-07 effective date.", "entities": []}
+{"id": "pii-070", "text": "Invoice total is 148500.00 USD payable net 45 from receipt.", "entities": []}
+{"id": "pii-071", "text": "Ticket 8675309 tracks the SSO integration for the pilot workspace.", "entities": []}
+{"id": "pii-072", "text": "SKU CONDUIT-ENT-1000 covers up to one thousand seats per year.", "entities": []}
+{"id": "pii-073", "text": "Renewal date moved from 2026-01-15 to 2026-04-30 after the amendment.", "entities": []}
+{"id": "pii-074", "text": "Q3 pipeline coverage is 3.2x against a 14 million dollar target.", "entities": []}
+{"id": "pii-075", "text": "The EMEA region closed 41 deals versus 38 in the prior quarter.", "entities": []}
+{"id": "pii-076", "text": "Compare list pricing for the Standard, Advanced and Premier editions.", "entities": []}
+{"id": "pii-077", "text": "Please contact Customer Success Team regarding the health score drop.", "entities": []}
+{"id": "pii-078", "text": "Approved by Finance Committee with a note about the ramp schedule.", "entities": []}
+{"id": "pii-079", "text": "Our AE coverage model assigns two reps per enterprise territory.", "entities": []}
+{"id": "pii-080", "text": "Extract the payment terms from the attached master services agreement.", "entities": []}
+{"id": "pii-081", "text": "Build number 20260907.4 shipped to the staging environment overnight.", "entities": []}
+{"id": "pii-082", "text": "Reference number 100200300400500 is the shipment tracking identifier.", "entities": []}
+{"id": "pii-083", "text": "The renewal covers Umbrella Health Global Services across four sites.", "entities": []}
+{"id": "pii-084", "text": "Regards,\nThe Deals Desk", "entities": []}
+{"id": "pii-085", "text": "Attn: Procurement Department -- revised terms attached for review.", "entities": []}
+{"id": "pii-086", "text": "Classify this request as pricing, legal, or technical before routing.", "entities": []}
+{"id": "pii-087", "text": "Stark Systems Holdings signed a three-year enterprise agreement.", "entities": []}
+{"id": "pii-088", "text": "Assigned to Renewals Team North America for the September cohort.", "entities": []}
+{"id": "pii-089", "text": "The policy section 4.2 governs discounts above the standard threshold.", "entities": []}
+{"id": "pii-090", "text": "Forecast category moved to Commit after the security review passed.", "entities": []}
+{"id": "pii-091", "text": "Meeting is Monday September at 10:00 in the Austin office.", "entities": []}
+{"id": "pii-092", "text": "Initech Technology Partners requested a two-week evaluation extension.", "entities": []}
+{"id": "pii-093", "text": "Product usage grew 18 percent month over month across the platform.", "entities": []}
+{"id": "pii-094", "text": "Route this to the deals desk queue with a standard 48 hour SLA.", "entities": []}
+{"id": "pii-095", "text": "The comp plan pays 10 percent accelerator above 100 percent attainment.", "entities": []}
+{"id": "pii-096", "text": "Draft talking points for the executive business review next month.", "entities": []}
+{"id": "pii-097", "text": "Purchase order 2026-PO-77410 must appear on every invoice line.", "entities": []}
+{"id": "pii-098", "text": "The West region uses a different approval matrix than APAC.", "entities": []}
+{"id": "pii-099", "text": "Summarize why Globex Solutions Group churned at the last renewal.", "entities": []}
+{"id": "pii-100", "text": "Our Account Executive coverage for Health and Public Sector doubled.", "entities": []}
