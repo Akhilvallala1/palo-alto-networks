@@ -108,6 +108,32 @@ produces a gateway that *serves*, not one that returns 502 until you pay someone
 Adding a key is a restart, not a rebuild — the adapters are plain `httpx`, so no
 vendor package needs installing for a hosted model to light up.
 
+### Mock is dormant in reverse (issue #14)
+
+The choice above has a sharp edge. If every chain ends in `mock:echo` and mock
+is always registered, then a *keyed* deployment whose vendor is having an outage
+walks the chain to the end and returns invented text — HTTP 200, `cost_usd:
+0.0`, a well-formed completion object. A quote workflow cannot tell that from an
+answer, and the telemetry row looks like a cheap success rather than an
+incident.
+
+So `mock` inverts the rule the other four providers follow. It is available only
+when **no** credential is present anywhere in the environment:
+
+| Environment | `ollama` | `mock` | Chain tail |
+|---|---|---|---|
+| no keys | available | available | `mock:echo`, so the gateway serves |
+| any real key | available | **dormant** | the last real model; exhaustion is a 502 |
+| any real key + `CONDUIT_ALLOW_MOCK=1` | available | available | `mock:echo`, and a warning is logged |
+
+`ollama` is untouched by this: it is keyless but it performs real local
+inference, so a keyed deployment may still route to it. The property being
+restricted is *fabrication*, not *free*.
+
+The escape hatch exists because tests and demos legitimately want the mock path
+next to a real key, but it is loud — `available_providers` logs a warning naming
+the credentialed providers whenever the override is what kept mock alive.
+
 ---
 
 ## Deployment topology

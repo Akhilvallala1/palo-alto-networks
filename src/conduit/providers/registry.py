@@ -9,8 +9,15 @@ the environment, and any model whose provider is absent is dropped from the
 registry entirely. So an unset `OPENAI_API_KEY` does not merely disable the
 OpenAI adapter, it makes every OpenAI model invisible to routing — which is the
 behaviour that lets the whole gateway run with zero keys on `ollama` + `mock`.
+
+Dormancy is deliberate; a *typo* is not. `models.yaml` naming a provider no
+adapter implements used to drop that model by the same code path, so a
+misspelled `anthropc` produced a registry that was quietly one model short and
+a chain that silently skipped a hop. `validate_provider_names` separates the
+two: an absent credential is dormancy, an unimplementable name is an error.
 """
 
+import logging
 import os
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
@@ -28,15 +35,22 @@ from .mock import MockProvider
 from .ollama import OllamaProvider
 
 __all__ = [
+    "ALLOW_MOCK_ENV",
     "ALL_PROVIDERS",
+    "FABRICATING_PROVIDERS",
     "KEYLESS_PROVIDERS",
     "PROVIDER_KEY_ENV",
     "ModelRegistry",
     "UnknownModelError",
+    "UnknownProviderError",
     "available_providers",
     "build_providers",
     "build_registry",
+    "keyed_providers",
+    "validate_provider_names",
 ]
+
+_log = logging.getLogger(__name__)
 
 #: Every adapter this package ships, in the order they are considered.
 ALL_PROVIDERS: tuple[str, ...] = ("anthropic", "ollama", "mock", "openai", "gemini")
@@ -44,6 +58,23 @@ ALL_PROVIDERS: tuple[str, ...] = ("anthropic", "ollama", "mock", "openai", "gemi
 #: Backends that need no credential. These are why the repo is runnable with
 #: zero keys, which matters more for a reviewer than any hosted vendor.
 KEYLESS_PROVIDERS = frozenset({"ollama", "mock"})
+
+#: Keyless is not the same as safe. `ollama` performs real inference; `mock`
+#: fabricates a completion from the prompt. Every chain in `config/routing.yaml`
+#: terminates in `mock:echo` so that a zero-key checkout still serves (AC-17) —
+#: which means that in a deployment holding a real credential, an upstream
+#: outage would walk the chain down to `mock` and hand the caller invented text
+#: at `cost_usd: 0.0` with a 200. A quote workflow cannot tell that apart from
+#: an answer. So `mock` goes dormant as soon as any real credential exists, and
+#: an exhausted chain fails loudly instead.
+FABRICATING_PROVIDERS = frozenset({"mock"})
+
+#: Escape hatch for the one legitimate case: a test or a demo that deliberately
+#: exercises the mock path while a real key happens to be in the environment.
+ALLOW_MOCK_ENV = "CONDUIT_ALLOW_MOCK"
+
+#: Values that mean "off" for `ALLOW_MOCK_ENV`. An unset var is also off.
+_FALSEY = frozenset({"", "0", "false", "no", "off"})
 
 PROVIDER_KEY_ENV: dict[str, str] = {
     "anthropic": anthropic_adapter.API_KEY_ENV,
@@ -61,6 +92,10 @@ _HTTP_ADAPTERS: dict[str, Callable[..., HttpProvider]] = {
 
 class UnknownModelError(LookupError):
     """A model id that is not in the registry — unpriced, or provider dormant."""
+
+
+class UnknownProviderError(ValueError):
+    """`models.yaml` names a provider no adapter implements. Almost always a typo."""
 
 
 class ModelRegistry:
@@ -164,14 +199,67 @@ class ModelRegistry:
 # --------------------------------------------------------------------------- #
 
 
-def available_providers(env: Mapping[str, str] | None = None) -> tuple[str, ...]:
-    """Provider names whose credential is present, plus the keyless ones."""
+def _enabled(value: str | None) -> bool:
+    return value is not None and value.strip().lower() not in _FALSEY
+
+
+def keyed_providers(env: Mapping[str, str] | None = None) -> tuple[str, ...]:
+    """Providers holding a real credential — the test for "this is a deployment"."""
     source = os.environ if env is None else env
     return tuple(
         name
         for name in ALL_PROVIDERS
-        if name in KEYLESS_PROVIDERS or source.get(PROVIDER_KEY_ENV[name])
+        if name in PROVIDER_KEY_ENV and source.get(PROVIDER_KEY_ENV[name])
     )
+
+
+def available_providers(env: Mapping[str, str] | None = None) -> tuple[str, ...]:
+    """Provider names whose credential is present, plus the keyless ones.
+
+    `mock` is the exception to "keyless means always on". It is available only
+    when no real credential exists anywhere in the environment, or when
+    `CONDUIT_ALLOW_MOCK` is set explicitly. Fabricated text reaching a caller
+    that believes it is talking to a model is worse than a 502, and the failover
+    chain has no way to distinguish the two on its own.
+    """
+    source = os.environ if env is None else env
+    keyed = keyed_providers(source)
+    override = _enabled(source.get(ALLOW_MOCK_ENV))
+    fabricating_ok = not keyed or override
+    if keyed and override:
+        _log.warning(
+            "%s is set while %s holds a credential: mock:echo stays routable and may "
+            "answer a real request with fabricated text.",
+            ALLOW_MOCK_ENV,
+            ", ".join(keyed),
+        )
+    return tuple(
+        name
+        for name in ALL_PROVIDERS
+        if (name in KEYLESS_PROVIDERS and (fabricating_ok or name not in FABRICATING_PROVIDERS))
+        or (name in PROVIDER_KEY_ENV and source.get(PROVIDER_KEY_ENV[name]))
+    )
+
+
+def validate_provider_names(models: Mapping[str, ModelSpec]) -> None:
+    """Fail on a provider name no adapter implements (issue #11).
+
+    Dormancy drops a model whose provider has no key, which is intended and
+    silent. A misspelled provider took the identical path, so `anthropc` cost
+    you a model and a chain hop with nothing logged anywhere. There is no
+    deployment in which that name is correct, so it is a config error.
+    """
+    unknown = {
+        model_id: spec.provider
+        for model_id, spec in models.items()
+        if spec.provider not in ALL_PROVIDERS
+    }
+    if unknown:
+        detail = ", ".join(f"{model_id} -> {name!r}" for model_id, name in sorted(unknown.items()))
+        raise UnknownProviderError(
+            f"no adapter implements the provider named by {len(unknown)} model(s): {detail}. "
+            f"Known providers: {', '.join(ALL_PROVIDERS)}."
+        )
 
 
 def build_providers(
@@ -219,6 +307,10 @@ def build_registry(
 ) -> ModelRegistry:
     """Load `models.yaml` and wire it to the adapters the environment allows."""
     table = (models if models is not None else load_models(config_dir, env)).models
+    # On the config path only. `ModelRegistry` itself stays generic: tests and the
+    # eval plane hand it providers named "scripted" or "fake", and those are real
+    # objects being injected, not names that have to resolve to a shipped adapter.
+    validate_provider_names(table)
     return ModelRegistry(
         table,
         build_providers(table, env=env, transport=transport, timeout_s=timeout_s, retry=retry),
