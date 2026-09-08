@@ -1,0 +1,37 @@
+# Model registry. Prices are USD per 1M tokens and live here, never in logic.
+# `tiers` is tier eligibility: which complexity tiers may route to this model.
+models:
+  claude-opus-5:
+    provider: anthropic
+    input_per_1m_usd: 15.00
+    output_per_1m_usd: 75.00
+    context_window: 200000
+    tiers: [complex]
+
+  claude-sonnet-5:
+    provider: anthropic
+    input_per_1m_usd: 3.00
+    output_per_1m_usd: 15.00
+    context_window: 200000
+    tiers: [standard, complex]
+
+  claude-haiku-4-5-20251001:
+    provider: anthropic
+    input_per_1m_usd: 1.00
+    output_per_1m_usd: 5.00
+    context_window: 200000
+    tiers: [trivial, standard]
+
+  "ollama:llama3.2":
+    provider: ollama
+    input_per_1m_usd: 0.00
+    output_per_1m_usd: 0.00
+    context_window: 128000
+    tiers: [trivial, standard]
+
+  "mock:echo":
+    provider: mock
+    input_per_1m_usd: 0.00
+    output_per_1m_usd: 0.00
+    context_window: 200000
+    tiers: [trivial, standard, complex]

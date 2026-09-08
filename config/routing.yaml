@@ -1,0 +1,10 @@
+# Tier -> ordered model chain. The router picks a tier, then walks the chain on
+# failover. First entry is the primary; the rest are fallbacks.
+tiers:
+  trivial: [claude-haiku-4-5-20251001, "ollama:llama3.2", "mock:echo"]
+  standard: [claude-sonnet-5, claude-haiku-4-5-20251001, "ollama:llama3.2"]
+  complex: [claude-opus-5, claude-sonnet-5]
+
+budgets:
+  default_daily_usd: 5.00
+  on_exceed: downgrade_tier # or: reject
