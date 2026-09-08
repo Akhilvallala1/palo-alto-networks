@@ -8,3 +8,14 @@ tiers:
 budgets:
   default_daily_usd: 5.00
   on_exceed: downgrade_tier # or: reject
+
+# Router classifier knobs. Read by src/conduit/router/settings.py;
+# conduit.config.RoutingConfig models only `tiers` and `budgets` and ignores
+# this block, so the two loaders do not fight over the same schema.
+classifier:
+  # Below this stage-1 confidence, escalate to the stage-2 LLM tie-break.
+  confidence_threshold: 0.55
+  # Tie-break verdicts, cached by prompt hash (in-memory LRU).
+  cache_size: 512
+  tiebreak_enabled: true
+  # tiebreak_model: unset => the cheapest model in the trivial chain.
