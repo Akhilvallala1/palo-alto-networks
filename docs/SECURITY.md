@@ -75,6 +75,24 @@ of `0.7` and a PII score threshold of `0.5`. A verdict at or above threshold
 blocks the request with HTTP 400 and a logged verdict carrying category and
 score. Every verdict is logged, blocked or not.
 
+### A fabricated answer is a security failure, not a fallback (issue #14)
+
+Every chain in `config/routing.yaml` ends in `mock:echo` so a zero-key checkout
+still serves. Left unqualified that is a liability: a deployment holding a real
+credential, during a vendor outage, would walk the chain to that last hop and
+return invented text as HTTP 200 with `cost_usd: 0.0`. Nothing downstream — not
+the L2C workflow, not the caller, not the telemetry row — can distinguish it
+from a real completion. Silent wrong answers are worse than loud failure,
+especially on a path that quotes prices.
+
+`mock` is therefore dormant whenever any provider credential is present. An
+exhausted chain raises `AllProvidersFailedError` and the request fails. The
+override, `CONDUIT_ALLOW_MOCK=1`, exists for tests and demos, and logs a warning
+naming the credentialed providers whenever it is what kept mock reachable.
+
+This is enforced in `available_providers` rather than in config, because a
+config-only rule is one careless `routing.yaml` edit from being untrue.
+
 ---
 
 ## Measured, including where it falls short

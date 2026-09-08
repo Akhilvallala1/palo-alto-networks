@@ -18,7 +18,7 @@ from conduit.providers.failover import (
     FailoverEvent,
 )
 from conduit.providers.mock import MockProvider
-from conduit.providers.registry import ModelRegistry, build_registry
+from conduit.providers.registry import ALLOW_MOCK_ENV, ModelRegistry, build_registry
 from provider_fixtures import (
     ECHO,
     HAIKU,
@@ -34,7 +34,11 @@ from provider_fixtures import (
 )
 from test_circuit_breaker import Clock
 
-LIVE_ENV = {"ANTHROPIC_API_KEY": "test-key"}
+# A credential plus an explicit mock opt-in. Since issue #14 a key alone makes
+# `mock` dormant, and these tests are about walking a chain to its end rather
+# than about which models a deployment should expose — `TRIVIAL_CHAIN` needs its
+# last hop to exist for "multi-hop" to mean anything.
+LIVE_ENV = {"ANTHROPIC_API_KEY": "test-key", ALLOW_MOCK_ENV: "1"}
 TRIVIAL_CHAIN = [HAIKU, LLAMA, ECHO]
 
 
