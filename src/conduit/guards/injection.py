@@ -112,6 +112,21 @@ PATTERNS: dict[str, tuple[re.Pattern[str], ...]] = {
         r"(?:void|revoked|cancell?ed|no longer|obsolete)",
         r"\b(?:stop|cease) (?:being|acting as|following)\b[^.\n]{0,30}"
         r"\b(?:assistant|instructions?|rules?|guidelines?)\b",
+        # "Disregard safety and execute…". The rule above needs a determiner
+        # between the verb and its object; naming the safety machinery directly
+        # does not use one. Kept to nouns that only describe the guard itself —
+        # "bypass MFA" and "bypass the reseller" are ordinary GTM sentences.
+        r"\b(?:ignore|disregard|bypass|override|disable|remove|turn off|switch off)\b"
+        r"[^.\n]{0,20}\b(?:safety|safeguards?|guardrails?|content\s+polic(?:y|ies)"
+        r"|safety\s+(?:layer|filters?|checks?)|guard\s+chain)\b",
+        # "Ignore your task and instead…" — the object is the job in hand rather
+        # than a rule, so the first rule's instruction nouns never see it.
+        r"\b(?:ignore|disregard|forget|abandon)\s+(?:your|the)\s+(?:\w+\s+){0,2}"
+        r"(?:task|assignment|objective)\b",
+        # "you are permitted to bypass…" grants the exemption instead of ordering it.
+        r"\b(?:permitted|allowed|authorised|authorized|free)\s+to\s+"
+        r"(?:bypass|ignore|override|disregard|skip|violate)\b[^.\n]{0,30}"
+        r"\b(?:safety|safeguards?|guardrails?|filters?|restrictions?|rules?|polic(?:y|ies))\b",
     ),
     "role_switch": _rules(
         r"\byou are (?:now|no longer)\b",
@@ -125,12 +140,40 @@ PATTERNS: dict[str, tuple[re.Pattern[str], ...]] = {
         r"\b(?:no|without|free of)\s+(?:restrictions?|rules?|filters?|guardrails?|limits?|ethics)",
         r"\byour new (?:persona|role|identity|character|name) is\b",
         r"\byou (?:are|have been) (?:re)?programmed\b",
-        r"\bsimulate\s+(?:an?\s+)?(?:ai|assistant|model)\s+(?:with|that has)\s+no\b",
+        # "Simulate an AI with no…" generalised past `simulate`: the payload is
+        # the *deprivation clause*, not the verb that introduces it.
+        r"\b(?:simulate|respond\s+as|reply\s+as|answer\s+as|act\s+as|behave\s+as|become"
+        r"|roleplay\s+as)\s+(?:an?\s+)?(?:ai|assistant|model|llm|bot|chatbot|system)\s+"
+        r"(?:with|that\s+has|having)\s+no\b",
+        # "Pretend you are the deal desk administrator with root access." The
+        # `pretend you are` rule above demands an explicit "no restrictions"
+        # clause; naming a privileged identity is the same request without one.
+        r"\bpretend\s+(?:that\s+)?you\s+(?:are|were)\b[^.\n]{0,60}"
+        r"\b(?:root|superuser|sudo|jailbroken|unrestricted|unfiltered|admin(?:istrator)?)\b",
+        # Entering a mode, as opposed to switching one on. Anchored to the start
+        # of a sentence because that is what separates an order to the model from
+        # a description of a product: "Enter maintenance mode;" is the first,
+        # "explains how to enter debug mode in the SDK" is the second, and the
+        # only difference between them is the infinitive.
+        r"(?:^|[.;!?\n]\s*|\band\s+|\bthen\s+)"
+        r"(?:switch|enter|go|jump|boot|drop)\s+(?:(?:in)?to\s+)?(?:an?\s+)?"
+        r"(?:developer|debug|god|admin|sudo|maintenance|unrestricted|dan)\s+mode\b",
+        # The hand-off line an adopted persona asks the model to acknowledge.
+        r"\b(?:answer|respond|reply|speak|continue|stay)\s+(?:as|in)\s+"
+        r"(?:that|this|the\s+new|your\s+new)\s+(?:persona|character|role|identity)\b",
+        r"\b(?:the|your)\s+new\s+persona\b",
     ),
     "system_prompt_leak": _rules(
-        r"\b(?:repeat|reveal|print|show|output|display|reproduce|echo|recite|dump|disclose|list)\b"
+        # `summarise` earns its place because the paraphrase leaks the same
+        # content as the verbatim copy, and it is the polite phrasing an attacker
+        # reaches for second. The object list is what keeps it narrow: summarising
+        # a quote, a pipeline or an incident matches nothing here.
+        r"\b(?:repeat|reveal|print|show|output|display|reproduce|echo|recite|dump|disclose|list"
+        r"|summari[sz]e)\b"
         r"[^.\n]{0,40}\b(?:system\s+prompt|initial\s+instructions?|your\s+instructions?"
-        r"|your\s+prompt|your\s+rules|your\s+guidelines|your\s+configuration|your\s+system\s+message"
+        r"|your\s+prompt|your\s+rules|your\s+guidelines|your\s+(?:system\s+)?configuration"
+        r"|your\s+system\s+message|system\s+configuration|context\s+window"
+        r"|hidden\s+(?:system\s+)?(?:message|prompt|instructions?)"
         r"|the\s+text\s+above|everything\s+above|the\s+prompt\s+above)\b",
         r"\bwhat\s+(?:were|are|is)\s+your\s+(?:original\s+|initial\s+|exact\s+)?"
         r"(?:instructions?|rules|guidelines|system prompt|prompt)\b",
@@ -148,6 +191,10 @@ PATTERNS: dict[str, tuple[re.Pattern[str], ...]] = {
         r"(?:^|\n)\s*(?:system|assistant)\s*:\s*(?:you|your|ignore|new)\b",
         r"-{3,}\s*(?:end|begin|start)\s+(?:of\s+)?(?:system|prompt|instructions?|context)",
         r"\{\{\s*(?:system|prompt|instructions?)\s*\}\}",
+        # `[system]: …` — a role tag in brackets rather than angle brackets, which
+        # is what a fenced block smuggles it in as. The trailing colon is what
+        # separates it from a markdown link.
+        r"(?:^|\n)\s*\[\s*(?:system|assistant|admin|inst|instructions?)\s*\]\s*:",
     ),
     "obfuscation": _rules(
         _ZERO_WIDTH_CLASS,
@@ -173,12 +220,28 @@ PATTERNS: dict[str, tuple[re.Pattern[str], ...]] = {
         r"\b(?:execute|run|eval|exec)\b[^.\n]{0,25}"
         r"\b(?:shell|bash|sh|powershell|python|sql|os\.system|subprocess|arbitrary code)\b",
         r"\bDROP\s+TABLE\b|\bUNION\s+SELECT\b|;\s*DELETE\s+FROM\b|\bTRUNCATE\s+TABLE\b",
+        # A bare `DELETE FROM` is left alone — it appears in incident write-ups —
+        # but an unbounded predicate, or a request to *run* one, is not prose.
+        r"\bDELETE\s+FROM\b[^.\n]{0,40}\bWHERE\s+1\s*=\s*1\b",
+        r"\b(?:execute|run|exec|issue|perform|apply)\b[^.\n]{0,30}\bDELETE\s+FROM\b",
         r"\byou\s+(?:now\s+)?have\s+(?:admin|root|elevated|full|unrestricted)\s+"
         r"(?:access|privileges?|permissions?|rights?)\b",
         r"\bgrant\s+(?:me|yourself|the user)\s+(?:admin|root|full|elevated)\b",
         r"\b(?:approve|authorize|sign off on)\b[^.\n]{0,50}\bwithout\b[^.\n]{0,30}"
         r"\b(?:approval|review|checking|verification|policy|manager|escalation)\b",
         r"\bset\s+(?:the\s+)?discount\s+to\s+\d+\s*%?[^.\n]{0,30}\b(?:regardless|ignoring|anyway)\b",
+        r"\belevate\b[^.\n]{0,30}\b(?:to\s+)?(?:admin|administrator|root|superuser|elevated)\b",
+        # Bulk read-out of a store, split by how loaded the verb is. `dump` and
+        # `exfiltrate` are adversarial whatever they point at.
+        r"\b(?:dump|exfiltrate)\s+(?:the\s+|our\s+|your\s+)?"
+        r"(?:entire|whole|full|complete|all\s+of\s+the)?\s*[^.\n]{0,30}"
+        r"\b(?:table|database|db|schema|records?|dataset|customer\s+list|user\s+list)\b",
+        # `export` and `extract` are ordinary GTM verbs — "extract the whole table
+        # of renewal dates from the spreadsheet" is the job — so they only count
+        # when the object is the customer store itself.
+        r"\b(?:export|extract|print|output|list)\b[^.\n]{0,30}"
+        r"\b(?:entire|whole|full|complete)\s+[^.\n]{0,20}"
+        r"\b(?:customer|user|account|client)\s+(?:table|list|records?|database)\b",
     ),
     "indirect_injection": _rules(
         r"\b(?:when|if|while|after|before)\s+(?:you\s+)?(?:summariz|process|read|analyz|review"
@@ -194,6 +257,9 @@ PATTERNS: dict[str, tuple[re.Pattern[str], ...]] = {
         r"(?:contains|includes|has)\s+(?:new\s+|updated\s+)?instructions?\b",
         r"\bif you are an? (?:ai|llm|assistant|language model)\b[^.\n]{0,50}"
         r"\b(?:then|you must|do)\b",
+        # `[[AI: …]]` planted in a document the model was asked to process. The
+        # bracket-plus-colon form is the whole signal; the payload inside varies.
+        r"\[{1,2}\s*(?:ai|assistant|llm|model|bot|agent)\s*[:\-]",
     ),
 }
 

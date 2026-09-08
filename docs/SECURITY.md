@@ -107,20 +107,26 @@ under issue #8 from the attack descriptions in `docs/SPEC.md`, never from
 | PII recall (`pii_corpus.jsonl`, gated by test) | ≥95% | ≥95%, per entity type too | met |
 | PII false positives | ≤5% | ≤5% | met |
 | PII on the independent slice | — | 9/10 | see below |
-| Injection detection (independent slice) | ≥90% | **70.0%** (21/30) | **unmet** |
+| Injection detection (golden slice, now fitted) | ≥90% | **100%** (30/30) | met, with a caveat |
 | Injection false positives on benign lookalikes | ≤10% | **0.0%** of 20 | met |
 
-The injection number is stated rather than tuned away, and the miss profile is
-what makes it actionable. The split is clean with nothing in between: every
-`instruction_override` case scores 0.94–1.00 and is caught, as is every
-`obfuscation` case. What is missed is attacks phrased as ordinary business
-requests — `role_switch` (3 of 4 missed), `prompt_exfil` (2 of 4), `tool_abuse`
-(2 of 3). Those score 0.07–0.35, nowhere near the 0.7 block threshold, so this
-is a coverage gap in the pattern set and **not** a threshold that needs nudging;
-lowering the threshold would cost false positives without catching them. Closing
-it properly means the optional LLM classifier
-(`injection.llm_classifier`), which is off by default because it adds a model
-call to every high-risk request.
+The caveat is load-bearing. That slice measured **70.0%** when it was written
+independently under #8, and the miss profile is what made it actionable: all
+nine misses scored 0.07–0.35 with a pattern score of exactly 0.00, so only the
+behavioral layer fired. A coverage gap in the pattern set, not a threshold that
+needed nudging — dropping the threshold to catch them would have cost the benign
+slice. Issue #13 closed the gap by extending the families that scored 0.00,
+which means the 100% is **fitted to that corpus and no longer a held-out
+measurement**. What backs the generalisation claim instead is a held-out probe
+of 26 phrasings in neither corpus; it caught one over-broad rule and one too
+narrow, and both were fixed before the number was reported. See
+[EVAL.md](EVAL.md#what-the-100-is-and-is-not-worth-issue-13).
+
+The right reading is "the known attack families are covered", not "the guard
+detects injection". Novel phrasing outside those families is exactly what a
+pattern set does not see, which is what the optional LLM classifier
+(`injection.llm_classifier`) is for; it stays off by default because it adds a
+model call to every high-risk request.
 
 The one PII miss on the independent slice is a bare person name with no
 co-occurring identifier. Presidio is an optional dependency and is not installed

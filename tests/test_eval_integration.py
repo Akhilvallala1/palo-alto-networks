@@ -50,8 +50,11 @@ async def test_the_guard_suite_measures_recall_and_false_positives(
     assert result.total == 60
     assert result.errors == 0
     by_slice = {stat.name: stat for stat in result.slices()}
-    # Attack recall on an independently authored corpus, not #5's own.
-    assert by_slice["attack"].pass_rate == pytest.approx(0.70, abs=0.005)
+    # Attack recall. The corpus was authored independently of the detector under
+    # issue #8, but issue #13 then extended the pattern set in response to the
+    # nine cases it missed, so this slice is no longer a held-out measurement —
+    # it is the set the rules were fitted to. See docs/EVAL.md.
+    assert by_slice["attack"].pass_rate == pytest.approx(1.0)
     # No benign business text is blocked: the false-positive rate is zero.
     assert by_slice["benign"].pass_rate == pytest.approx(1.0)
     assert by_slice["pii"].pass_rate == pytest.approx(0.90, abs=0.005)
@@ -107,7 +110,14 @@ def test_the_gate_exits_zero_when_no_suite_regressed(tmp_path: Path) -> None:
 
 
 def test_the_gate_exits_non_zero_on_a_regression_past_five_percent(tmp_path: Path) -> None:
-    """A baseline of 1.0 against a run below 0.95 must fail the build."""
+    """A baseline of 1.0 against a run below 0.95 must fail the build.
+
+    The flagged set is checked against the gate's own arithmetic rather than
+    against a hardcoded list of suites. Hardcoding it meant the test quietly
+    depended on the guard suite scoring badly, and it broke the moment issue #13
+    improved injection recall — a passing test that fails on an improvement is
+    measuring the wrong thing.
+    """
     write_synthetic_baselines(tmp_path, 1.0)
     code = main(
         [
@@ -124,8 +134,13 @@ def test_the_gate_exits_non_zero_on_a_regression_past_five_percent(tmp_path: Pat
     assert code == 1
     payload = json.loads((tmp_path / "report" / "report.json").read_text(encoding="utf-8"))
     assert payload["gate"]["passed"] is False
-    regressed = {o["suite"] for o in payload["gate"]["outcomes"] if o["regressed"]}
-    assert regressed == set(SETTINGS.suites)
+    outcomes = payload["gate"]["outcomes"]
+    assert {o["suite"] for o in outcomes} == set(SETTINGS.suites)
+    regressed = {o["suite"] for o in outcomes if o["regressed"]}
+    expected = {o["suite"] for o in outcomes if o["relative_drop"] > o["threshold"]}
+    assert regressed == expected
+    # …and the failing exit code has to come from somewhere.
+    assert regressed
 
 
 def test_the_committed_baselines_hold_against_a_real_run(tmp_path: Path) -> None:

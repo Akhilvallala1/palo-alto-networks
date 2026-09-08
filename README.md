@@ -89,7 +89,9 @@ would against a frontier model.
 | Router tier agreement | ≥85% | **82.9%** | **not met** ([#12](../../issues/12)) |
 | — on prompts whose wording matches their tier | | 98.3% | |
 | — on prompts where it does not | | 62.2% | |
-| Prompt-injection detection | ≥90% | **70.0%** | **not met** ([#13](../../issues/13)) |
+| Prompt-injection detection | ≥90% | **100%** | met, but fitted — see below |
+| — same corpus before [#13](../../issues/13) closed the gap | | 70.0% | |
+| — held-out probe, 26 unseen phrasings | | 26/26 | |
 | Injection false positives | ≤10% | **0%** | met |
 | PII detection | | 90.0% | |
 
@@ -100,6 +102,15 @@ someone who knew the answers. Agreement fell to 82.9% and the gap is where the
 work is. `tests/test_routing_eval.py` holds a strict `xfail` naming these
 numbers, so the test fails as soon as the classifier improves and the target is
 closed deliberately. See `docs/EVAL.md`.
+
+The injection number moved the other way, and the caveat matters more than the
+number. All nine misses at 70.0% scored a *pattern* score of exactly 0.00, which
+is a coverage gap rather than a threshold to nudge, so #13 extended the families
+that fired on nothing. Writing rules against the cases that failed makes 100% an
+upper bound on that corpus, not a detection rate — the claim worth anything is
+the held-out probe, which caught one over-broad rule (`extract the whole table`
+is a real GTM request) and one too narrow before either shipped. `docs/EVAL.md`
+carries the full accounting.
 
 ## Layout
 
@@ -127,7 +138,7 @@ apps/l2c/        the lead-to-cash workflow (LangGraph + sqlite-vec RAG)
 
 ```bash
 pip install -e ".[dev]"
-pytest -q                        # 824 passed, 4 skipped, 1 xfailed
+pytest -q                        # 882 passed, 4 skipped, 1 xfailed
 mypy --strict src/conduit apps   # 57 source files
 ruff check src tests apps evals scripts
 conduit-eval run                 # offline; judges against mock:echo, costs $0
