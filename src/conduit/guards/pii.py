@@ -426,24 +426,46 @@ def resolve_overlaps(spans: Iterable[EntitySpan]) -> list[EntitySpan]:
     return sorted(kept, key=lambda s: s.start)
 
 
-def redact(text: str, spans: Sequence[EntitySpan]) -> tuple[str, dict[str, str]]:
-    """Replace each span with `<LABEL_n>`, returning the new text and the map.
+def redact(
+    text: str,
+    spans: Sequence[EntitySpan],
+    entity_map: dict[str, str] | None = None,
+) -> tuple[str, dict[str, str]]:
+    """Replace each span with a stable `<LABEL_n>` placeholder; return new text and map.
 
     Identical originals of the same type share one placeholder, so a name that
-    appears three times stays one entity to the model and rehydrates uniformly.
+    appears three times stays one entity and the model rehydrates uniformly.
+
+    Pass `entity_map` to continue an existing numbering when redacting a document
+    in segments (several `Message` bodies, say). Without it every call restarts at
+    `_1`, so two independently redacted segments both mint a `<PERSON_1>` for
+    *different* people; merging those maps rehydrates the wrong name into the
+    answer. Continuing the map instead makes per-segment redaction composable:
+    the same original keeps the same placeholder across calls, and a new one gets
+    the next free number.
     """
     ordered = resolve_overlaps(spans)
     counters: dict[str, int] = {}
     assigned: dict[tuple[str, str], str] = {}
-    entity_map: dict[str, str] = {}
+    entity_map = dict(entity_map) if entity_map else {}
+
+    # Rebuild the numbering state from a caller-supplied map so this call
+    # continues it rather than colliding with it.
+    for existing, original in entity_map.items():
+        parsed = PLACEHOLDER_RE.fullmatch(existing)
+        if parsed is None:
+            continue
+        label, number = parsed.group(1), int(parsed.group(2))
+        assigned[(label, original)] = existing
+        counters[label] = max(counters.get(label, 0), number)
+
     pieces: list[str] = []
     cursor = 0
-
     for span in ordered:
-        key = (span.entity_type, span.text)
+        label = PLACEHOLDER_LABELS.get(span.entity_type, span.entity_type)
+        key = (label, span.text)
         placeholder = assigned.get(key)
         if placeholder is None:
-            label = PLACEHOLDER_LABELS.get(span.entity_type, span.entity_type)
             counters[label] = counters.get(label, 0) + 1
             placeholder = f"<{label}_{counters[label]}>"
             assigned[key] = placeholder
@@ -451,7 +473,6 @@ def redact(text: str, spans: Sequence[EntitySpan]) -> tuple[str, dict[str, str]]
         pieces.append(text[cursor : span.start])
         pieces.append(placeholder)
         cursor = span.end
-
     pieces.append(text[cursor:])
     return "".join(pieces), entity_map
 

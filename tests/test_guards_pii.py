@@ -252,3 +252,69 @@ def test_presidio_adapter_maps_engine_results_and_merges_gtm_ids() -> None:
 
 async def test_verdict_is_a_guard_verdict(guard: PIIGuard) -> None:
     assert isinstance(await guard.inspect("plain text"), GuardVerdict)
+
+
+class TestSegmentedRedactionIsComposable:
+    """Redacting a document in segments must not mint colliding placeholders.
+
+    The gateway inspects several `Message` bodies per request. Before `redact()`
+    accepted a continuation map, each call restarted numbering, so two different
+    people both became `<PERSON_1>`; merging the maps rehydrated one person's name
+    into the other's sentence. In a lead-to-cash flow that is a quote addressed to
+    the wrong customer, which is worse than leaking the name.
+    """
+
+    def _redact_all(self, segments: list[str]) -> tuple[list[str], dict[str, str]]:
+        analyzer = RegexAnalyzer()
+        entity_map: dict[str, str] = {}
+        out: list[str] = []
+        for segment in segments:
+            text, entity_map = redact(
+                segment, analyzer.analyze(segment, ("EMAIL_ADDRESS",)), entity_map
+            )
+            out.append(text)
+        return out, entity_map
+
+    def test_two_people_in_two_segments_get_distinct_placeholders(self) -> None:
+        texts, entity_map = self._redact_all(
+            ["Contact is alice@northwind.example.", "Escalate to bob@contoso.example."]
+        )
+        first = find_placeholders(texts[0])
+        second = find_placeholders(texts[1])
+        assert first and second
+        assert not set(first) & set(second), (
+            f"segments collided: {first} vs {second} — the same placeholder now maps "
+            "to two different originals and rehydration returns the wrong value"
+        )
+        assert len(set(entity_map.values())) == len(entity_map)
+
+    def test_the_same_original_reuses_its_placeholder_across_segments(self) -> None:
+        texts, entity_map = self._redact_all(
+            ["Quote for alice@northwind.example.", "Approver: alice@northwind.example."]
+        )
+        assert find_placeholders(texts[0]) == find_placeholders(texts[1])
+        assert len(entity_map) == 1
+
+    def test_round_trip_through_segments_restores_every_original(self) -> None:
+        segments = [
+            "Contact is alice@northwind.example.",
+            "Escalate to bob@contoso.example.",
+            "Cc alice@northwind.example. again.",
+        ]
+        texts, entity_map = self._redact_all(segments)
+        assert [rehydrate(t, entity_map) for t in texts] == segments
+        assert not any(find_placeholders(rehydrate(t, entity_map)) for t in texts)
+
+    def test_without_a_continuation_map_the_collision_is_still_reproducible(self) -> None:
+        """Documents why the parameter exists: the old call shape still collides."""
+        analyzer = RegexAnalyzer()
+        a, map_a = redact(
+            "Contact is alice@northwind.example.",
+            analyzer.analyze("Contact is alice@northwind.example.", ("EMAIL_ADDRESS",)),
+        )
+        b, map_b = redact(
+            "Escalate to bob@contoso.example.",
+            analyzer.analyze("Escalate to bob@contoso.example.", ("EMAIL_ADDRESS",)),
+        )
+        assert set(find_placeholders(a)) & set(find_placeholders(b))
+        assert map_a != map_b
