@@ -86,6 +86,16 @@ structurally true rather than aspirational, and it is enforced by a test (AC-16)
 
 ## Interface Contract (built FIRST — freezes the seams for parallel agents)
 
+> **Amended 2026-09-07 after wave 1**, before waves 2–4 spawned. Five changes
+> against the original draft: `Guard.inspect` is async (the original sync
+> signature made issue #5's LLM classifier guard impossible without blocking
+> the event loop); `fallback_from` is a list (the standard tier chain is three
+> long, so one slot dropped hops AC-3 requires); `Usage` carries cache token
+> counts (AC-12); `risk_score` and `score` are bounded by `Field`, not by a
+> comment; and `Provider.complete`'s `model` argument is documented as
+> authoritative over `req.model`. `src/conduit/contracts.py` on `main` is the
+> source of truth — this block mirrors it.
+
 `src/conduit/contracts.py` is the single source of truth. Every component imports from it and
 nothing else crosses module boundaries. This exists specifically so parallel worktree agents
 cannot drift.
@@ -112,9 +122,11 @@ class CompletionRequest(BaseModel):
     metadata: dict[str, str] = Field(default_factory=dict)  # team, workflow, trace_id
 
 class Usage(BaseModel):
-    prompt_tokens: int
+    prompt_tokens: int                # uncached remainder only
     completion_tokens: int
     cost_usd: float
+    cache_read_tokens: int = 0        # billed at 0.1x input
+    cache_write_tokens: int = 0       # billed at 1.25x input (5m TTL)
 
 class CompletionResponse(BaseModel):
     text: str
@@ -123,7 +135,7 @@ class CompletionResponse(BaseModel):
     usage: Usage
     latency_ms: int
     routed_tier: Complexity
-    fallback_from: str | None = None  # set when primary provider failed
+    fallback_from: list[str] = Field(default_factory=list)  # tried and failed, in order
 
 class Provider(Protocol):
     name: str
@@ -133,18 +145,18 @@ class Provider(Protocol):
 
 class GuardVerdict(BaseModel):
     allowed: bool
-    risk_score: float                 # 0.0–1.0
+    risk_score: float = Field(ge=0.0, le=1.0)
     categories: list[str]             # ["pii:email", "injection:instruction_override"]
     redacted_text: str | None = None
     entity_map: dict[str, str] = Field(default_factory=dict)  # placeholder -> original
 
 class Guard(Protocol):
     name: str
-    def inspect(self, text: str) -> GuardVerdict: ...
+    async def inspect(self, text: str) -> GuardVerdict: ...
 
 class JudgeScore(BaseModel):
     rubric: str
-    score: float                      # 0.0–1.0
+    score: float = Field(ge=0.0, le=1.0)
     reasoning: str
     passed: bool
 ```
@@ -208,7 +220,8 @@ Adapters implementing `Provider`: `anthropic` (live, requires `ANTHROPIC_API_KEY
   context window, tier eligibility. Prices live in config, never hardcoded in logic.
 - **Failover:** on 5xx/timeout/rate-limit, try next provider in the tier's chain. Circuit
   breaker opens after 5 consecutive failures per provider, half-opens after 30s.
-  `fallback_from` records the original provider so failover is visible in telemetry.
+  `fallback_from` records every provider tried and failed, in order, so multi-hop
+  failover is visible in telemetry.
 - Retries: 3 attempts, exponential backoff with jitter, cap 8s. Never retry 4xx except 429.
 
 ### #3 Complexity router
@@ -295,7 +308,8 @@ retrieval logic a reviewer wants to see.
 ## Acceptance Criteria
 
 1. `POST /v1/chat/completions` accepts an OpenAI-shaped request and returns an OpenAI-shaped
-   response (drop-in for existing OpenAI SDK clients).
+   response (drop-in for existing OpenAI SDK clients). Non-streaming only: `stream: true`
+   returns a 400 naming the limitation. See Out of Scope.
 2. The same request succeeds against Anthropic, Ollama, and mock providers with no caller-side
    change beyond one config value.
 3. Killing the primary provider mid-run produces a successful response with `fallback_from`
@@ -346,6 +360,11 @@ retrieval logic a reviewer wants to see.
 - A production auth system (SSO/OIDC). Static API keys, exactly like `mcp-gateway`.
 - Multi-tenant data isolation beyond per-key budget and quota accounting.
 - A polished frontend. A minimal HTML dashboard for telemetry is the ceiling.
+- **Streaming.** `CompletionResponse` is unary, so AC-1's "drop-in" means
+  non-streaming completions only; `stream: true` is rejected with a clear 400
+  rather than silently ignored. Adding it would put an SSE path through every
+  provider, the guard chain (which cannot inspect a response it has not
+  finished receiving), and cost accounting — a subsystem, not a field.
 - Knowledge graph. Named in the JD but adds a whole subsystem; RAG + policy citation covers
   the same interview ground at a fraction of the cost. Revisit only if #1-#9 land early.
 
