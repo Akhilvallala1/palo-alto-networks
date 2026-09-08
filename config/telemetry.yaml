@@ -1,0 +1,13 @@
+# Telemetry store. Both files below are gitignored and disposable — the JSONL is
+# the append-only record of truth, the SQLite file is a derived index used for
+# aggregation behind /metrics and /dashboard.
+enabled: true
+dir: var/telemetry
+jsonl_filename: events.jsonl
+sqlite_filename: events.db
+
+# Off by design. Enabling this persists raw prompt and completion text, which
+# then outlives the request and lands in a file nobody scrubs. Turn it on only
+# for a local debugging session, never in a deployed config.
+persist_text: false
+max_text_chars: 2000
