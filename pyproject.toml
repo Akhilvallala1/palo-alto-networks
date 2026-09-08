@@ -104,7 +104,26 @@ asyncio_mode = "auto"
 # `apps` is a top-level package in the repo root rather than under `src/`, so
 # the root has to be importable for the L2C suite to find it.
 pythonpath = ["."]
+# Applied by `tests/conftest.py` from the module's filename, so CI can report
+# unit and integration as separate stages (AC-18) without a marker decorator on
+# every one of 800 tests.
+markers = [
+    "integration: wires several packages together, or talks outside the process",
+]
 
 [tool.coverage.run]
 source = ["src/conduit"]
 branch = true
+
+[tool.coverage.report]
+# AC-19, committed rather than passed as a CI flag: the threshold is a property
+# of the project, so `coverage report` fails the same way on a laptop as it does
+# in the workflow.
+fail_under = 80
+show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    # Protocol bodies are `...` by definition and can never be executed.
+    "^\\s*\\.\\.\\.$",
+]

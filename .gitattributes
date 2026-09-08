@@ -1,0 +1,13 @@
+# Files that are read by a Linux parser regardless of the machine they were
+# cloned onto. `core.autocrlf=true` is the Git for Windows default, so without
+# these rules a Windows clone gets CRLF here and the quickstart stops working
+# verbatim (AC-20) on the one platform most likely to try it first: Docker's
+# Dockerfile parser and `sh -c` both treat a trailing CR as part of the token.
+#
+# Scoped to the files this change owns rather than a repo-wide `* text=auto`,
+# which would renormalise every file in the tree at once.
+infra/Dockerfile     text eol=lf
+docker-compose.yml   text eol=lf
+.dockerignore        text eol=lf
+*.sh                 text eol=lf
+.github/**/*.yml     text eol=lf

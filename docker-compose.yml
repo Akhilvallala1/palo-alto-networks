@@ -1,0 +1,97 @@
+# AC-17: `docker compose up` yields a working gateway with zero API keys set.
+#
+# Nothing below reads a credential. The registry instantiates an adapter only
+# when it sees that adapter's key env var, and drops every model whose provider
+# is dormant — so on a clean machine the live model set is exactly
+# {`ollama:llama3.2`, `mock:echo`}, and every chain in `config/routing.yaml`
+# terminates in `mock:echo`. The gateway is therefore *serving*, not merely
+# listening, the moment its healthcheck goes green.
+#
+# `ollama-pull` is deliberately not a dependency of the gateway. Seeding the
+# model volume is a multi-gigabyte download; making the gateway wait on it would
+# turn a 20-second `up` into a 10-minute one, and would make AC-17 false on a
+# machine with a slow link. The gateway serves from `mock:echo` immediately and
+# gains the Ollama path when the pull lands.
+#
+#   docker compose up -d --wait gateway   # gateway + ollama, no model download
+#   curl localhost:8000/healthz
+#   docker compose --profile seed up ollama-pull   # opt in to the Ollama path
+
+name: conduit
+
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+    image: conduit-gateway:local
+    ports:
+      - "${CONDUIT_PORT:-8000}:8000"
+    environment:
+      # The gateway talks to the sibling container, not to a localhost that
+      # would resolve to the gateway's own namespace.
+      OLLAMA_HOST: http://ollama:11434
+      CONDUIT_CONFIG_DIR: /app/config
+      CONDUIT_TELEMETRY__DIR: /app/var/telemetry
+    # Optional, and *only* optional. A missing .env must not stop the stack, or
+    # the zero-key claim depends on a file the zero-key path does not have.
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      # Telemetry is the one piece of state. JSONL is the record of truth, the
+      # SQLite file is a derived index; both are disposable.
+      - conduit-telemetry:/app/var
+    depends_on:
+      ollama:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=4).read()
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  ollama:
+    # Pinned. `latest` would make the zero-key path depend on whatever was
+    # published this morning.
+    image: ollama/ollama:0.12.3
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  ollama-pull:
+    # Behind a profile: a bare `docker compose up` must not trigger a
+    # multi-gigabyte model download. AC-17 is satisfied by `mock:echo`, which
+    # needs nothing pulled. Seed the Ollama path explicitly when you want it:
+    #   docker compose --profile seed up ollama-pull
+    profiles: ["seed"]
+    # Seeds the model volume, then exits. One-shot: `restart: no` and no
+    # dependent service, so a failed or slow pull degrades the Ollama path
+    # without touching the gateway's availability.
+    image: ollama/ollama:0.12.3
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["ollama pull ${OLLAMA_MODEL:-llama3.2} && ollama list"]
+    restart: "no"
+
+volumes:
+  conduit-telemetry:
+  ollama-models:
