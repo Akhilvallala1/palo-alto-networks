@@ -6,12 +6,12 @@ rather than only through the HTTP surface.
 """
 
 import pytest
-from tests.gateway_fixtures import GOOD_KEY, SLOW_KEY, TRIVIAL_KEY, gateway_settings
 
 from conduit.contracts import Complexity
 from conduit.gateway.auth import ANONYMOUS, ApiKeyDirectory, extract_key
 from conduit.gateway.errors import UnauthorizedError
 from conduit.gateway.settings import ApiKeySettings, GatewaySettings
+from tests.gateway_fixtures import GOOD_KEY, SLOW_KEY, TRIVIAL_KEY, gateway_settings
 
 
 def test_resolves_a_known_key_to_its_team_and_quota() -> None:

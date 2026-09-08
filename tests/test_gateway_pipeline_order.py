@@ -15,7 +15,6 @@ than merely disagreeing with a hardcoded list.
 from pathlib import Path
 
 import pytest
-from tests.gateway_fixtures import GOOD_KEY, build_app, gateway_settings
 
 from conduit.contracts import CompletionRequest, GuardVerdict, Message
 from conduit.gateway.auth import ApiKeyDirectory
@@ -26,6 +25,7 @@ from conduit.gateway.pipeline import (
     StageLog,
     blocking_guard,
 )
+from tests.gateway_fixtures import GOOD_KEY, build_app, gateway_settings
 
 
 def test_the_documented_order_is_the_epics_order() -> None:
