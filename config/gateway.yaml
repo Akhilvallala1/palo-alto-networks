@@ -1,0 +1,30 @@
+# Gateway: static API keys and what each one is entitled to.
+#
+# One row per key. `team` is the telemetry attribution the gateway stamps onto
+# `metadata["team"]`, so /metrics can slice by it (AC-12). `daily_budget_usd`
+# overrides `routing.yaml`'s `budgets.default_daily_usd` for this key alone, and
+# `max_tier` is the ceiling the router is allowed to route it to.
+#
+# These are demo keys for the zero-key local path (mock + ollama). Override them
+# in a real deployment with the same env engine every other config file uses:
+#
+#   CONDUIT_GATEWAY__RATE_LIMIT_PER_MINUTE=600
+#   CONDUIT_GATEWAY__API_KEYS='[{"key": "...", "team": "gtm"}]'
+
+api_keys:
+  - key: conduit-demo-key
+    team: gtm-demo
+    rate_limit_per_minute: 60
+    max_tier: complex
+
+  - key: conduit-trivial-key
+    team: gtm-batch
+    rate_limit_per_minute: 120
+    daily_budget_usd: 1.00
+    max_tier: trivial
+
+# Applied to any key that does not set its own.
+rate_limit_per_minute: 60
+
+# Refuse to start with no keys configured, rather than serving an open proxy.
+require_auth: true
