@@ -1,0 +1,166 @@
+# Cloud Run deploy — manual only.
+#
+# `workflow_dispatch` is the *only* trigger. There is deliberately no `push`, no
+# `release`, and no `workflow_run: [CI]` chain — rival-radar's deploy fires on
+# every green CI run on master, and that is the behaviour this epic's AC-6
+# specifically rules out. Shipping is a decision someone makes, with an
+# environment approval in front of it, not a side effect of merging.
+#
+# Secret handling, and why nothing here can leak (AC-7):
+#
+#   * Authentication is Workload Identity Federation. No service-account JSON
+#     lives in this repository; GitHub mints a short-lived OIDC token that GCP
+#     exchanges for credentials, so there is no long-lived key to print.
+#   * Runtime credentials are attached with `--set-secrets`, which passes Secret
+#     Manager *resource names* — `conduit-anthropic-api-key:latest` — not
+#     values. The API key never enters the runner's memory, let alone its log.
+#     rival-radar used `--set-env-vars "ANTHROPIC_API_KEY=${{ secrets... }}"`,
+#     which materialises the value in a command line; that is the one thing this
+#     file must not do.
+#   * No step echoes a variable that holds anything sensitive. The identity
+#     token used for the smoke test is consumed by command substitution inside
+#     `curl` and is never assigned to a shell variable or printed.
+#
+# One-time setup is documented in docs/SECURITY.md.
+
+name: Deploy (Cloud Run)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment (gates on GitHub environment approval)"
+        type: choice
+        options: [staging, production]
+        default: staging
+        required: true
+      image_tag:
+        description: "Tag to build and deploy. Defaults to the commit SHA."
+        type: string
+        default: ""
+        required: false
+      public:
+        description: >-
+          Allow unauthenticated ingress. Conduit has its own API-key layer, but
+          a public URL is still a public URL — off unless asked for.
+        type: boolean
+        default: false
+      dry_run:
+        description: "Build and push the image, but do not update the service."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  # Required for Workload Identity Federation, and the reason no JSON key is
+  # stored in this repo.
+  id-token: write
+
+concurrency:
+  # One deploy per environment at a time; never cancel one in flight, because a
+  # half-applied Cloud Run revision is worse than a queued one.
+  group: deploy-${{ github.event.inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build · Push · Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+
+    env:
+      REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+      SERVICE: conduit-gateway-${{ inputs.environment }}
+      REPOSITORY: conduit
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the image tag
+        id: meta
+        run: |
+          tag="${{ inputs.image_tag }}"
+          if [ -z "$tag" ]; then tag="${GITHUB_SHA::12}"; fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Deploying tag $tag to ${{ inputs.environment }}"
+
+      - id: auth
+        name: Authenticate to Google Cloud (keyless, OIDC)
+        uses: google-github-actions/auth@v2
+        with:
+          # Both are repository/environment *secrets* so GitHub masks them if
+          # some future step ever prints one. Neither is a credential on its
+          # own: the trust is in the WIF pool's binding to this repository.
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and push
+        env:
+          IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/gateway
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          docker build -f infra/Dockerfile -t "$IMAGE:$TAG" -t "$IMAGE:latest" .
+          docker push "$IMAGE:$TAG"
+          docker push "$IMAGE:latest"
+
+      - name: Deploy revision
+        if: ${{ !inputs.dry_run }}
+        env:
+          IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/gateway
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          # --set-secrets takes Secret Manager resource names. The values are
+          # resolved by Cloud Run at container start, inside GCP, and never
+          # traverse this runner. Every secret below is optional at runtime: an
+          # absent Anthropic key means the registry drops the Anthropic models
+          # and the service keeps serving on the remaining chain.
+          gcloud run deploy "$SERVICE" \
+            --image "$IMAGE:$TAG" \
+            --region "$REGION" \
+            --platform managed \
+            --port 8000 \
+            --cpu 1 \
+            --memory 1Gi \
+            --min-instances 0 \
+            --max-instances 5 \
+            --timeout 120s \
+            --service-account "${{ secrets.GCP_RUNTIME_SERVICE_ACCOUNT }}" \
+            --set-env-vars "CONDUIT_CONFIG_DIR=/app/config,CONDUIT_TELEMETRY__DIR=/tmp/telemetry" \
+            --set-secrets "ANTHROPIC_API_KEY=conduit-anthropic-api-key:latest,CONDUIT_GATEWAY__API_KEYS=conduit-gateway-api-keys:latest" \
+            --labels "managed-by=github-actions,commit=$TAG" \
+            $( [ "${{ inputs.public }}" = "true" ] && echo "--allow-unauthenticated" || echo "--no-allow-unauthenticated" ) \
+            --quiet
+
+      - name: Smoke test the new revision
+        if: ${{ !inputs.dry_run }}
+        run: |
+          url="$(gcloud run services describe "$SERVICE" --region "$REGION" --format 'value(status.url)')"
+          echo "Service URL: $url"
+          # The identity token is produced and consumed in one expression. It is
+          # never assigned, never exported, never echoed. On a public service
+          # the header is simply ignored.
+          curl --fail --silent --show-error --retry 5 --retry-delay 3 --retry-connrefused \
+            -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+            "$url/healthz"
+          echo
+          echo "### Deployed \`$SERVICE\` → $url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Roll back to the previous revision on failure
+        if: ${{ failure() && !inputs.dry_run }}
+        run: |
+          previous="$(gcloud run revisions list --service "$SERVICE" --region "$REGION" \
+            --sort-by '~metadata.creationTimestamp' --format 'value(metadata.name)' --limit 2 \
+            | tail -n 1)"
+          if [ -n "$previous" ]; then
+            echo "Routing 100% of traffic back to $previous"
+            gcloud run services update-traffic "$SERVICE" --region "$REGION" \
+              --to-revisions "$previous=100" --quiet
+          else
+            echo "No previous revision to roll back to; leaving the service as is."
+          fi

@@ -13,3 +13,16 @@ var/
 # Seeded GTM data. Regenerate with `python scripts/seed_gtm_data.py`; it is
 # deterministic under a fixed seed, so the files are derived, not source.
 data/
+
+# Tooling output. `coverage run -p` writes one .coverage.<host>.<pid> per stage
+# before `coverage combine` merges them, so the glob matters as much as the file.
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# `conduit-eval run --report-dir` in CI.
+eval-report/

@@ -1,0 +1,34 @@
+# The build context is the repo root (compose needs `config/` and `src/` from
+# the same context), so everything the image does not need is excluded here
+# rather than by narrowing the context.
+
+.git/
+.github/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+
+# Tests, evals and docs are not runtime inputs. Excluding them keeps a source
+# change from busting the dependency layer of every build.
+tests/
+evals/
+docs/
+examples/
+scripts/
+
+# State and secrets, in that order of likelihood and reverse order of severity.
+var/
+data/
+.env
+.env.*
+!.env.example
+
+.coverage
+coverage.xml
+htmlcov/
