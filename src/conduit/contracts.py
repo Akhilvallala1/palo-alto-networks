@@ -58,7 +58,9 @@ class CompletionResponse(BaseModel):
     usage: Usage
     latency_ms: int
     routed_tier: Complexity
-    fallback_from: list[str] = Field(default_factory=list)  # models tried and failed, in order
+    fallback_from: list[str] = Field(
+        default_factory=list
+    )  # MODEL IDS tried and failed, in order; provider is derivable via the registry
 
 
 @runtime_checkable

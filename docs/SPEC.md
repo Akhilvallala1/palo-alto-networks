@@ -220,7 +220,7 @@ Adapters implementing `Provider`: `anthropic` (live, requires `ANTHROPIC_API_KEY
   context window, tier eligibility. Prices live in config, never hardcoded in logic.
 - **Failover:** on 5xx/timeout/rate-limit, try next provider in the tier's chain. Circuit
   breaker opens after 5 consecutive failures per provider, half-opens after 30s.
-  `fallback_from` records every provider tried and failed, in order, so multi-hop
+  `fallback_from` records every **model id** tried and failed, in order, so multi-hop
   failover is visible in telemetry.
 - Retries: 3 attempts, exponential backoff with jitter, cap 8s. Never retry 4xx except 429.
 

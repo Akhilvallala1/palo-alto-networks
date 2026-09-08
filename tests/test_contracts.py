@@ -93,7 +93,7 @@ INSTANCES: list[BaseModel] = [
         usage=USAGE,
         latency_ms=980,
         routed_tier=Complexity.STANDARD,
-        fallback_from=["anthropic"],
+        fallback_from=["claude-opus-5"],
     ),
     GuardVerdict(allowed=True, risk_score=0.0, categories=[]),
     GuardVerdict(
