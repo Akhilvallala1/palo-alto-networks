@@ -32,6 +32,10 @@ dev = [
     "mypy>=1.11",
     "coverage>=7.6",
     "types-PyYAML>=6.0",
+    # AC-1 is "an unmodified OpenAI SDK client gets a valid completion", so the
+    # gateway's integration suite drives the real SDK over an ASGI transport
+    # (offline). Without this the test skips and the claim goes unverified.
+    "openai>=1.40",
 ]
 
 [tool.hatch.build.targets.wheel]
