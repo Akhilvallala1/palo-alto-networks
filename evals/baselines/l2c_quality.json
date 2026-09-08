@@ -1,0 +1,10 @@
+{
+  "cases": 20,
+  "judge_model": "offline-judge:rubric",
+  "mean_score": 0.558335,
+  "model_under_test": "mock:echo",
+  "note": "",
+  "pass_rate": 0.25,
+  "recorded_at": "2026-09-08T06:05:06.616759Z",
+  "suite": "l2c_quality"
+}
