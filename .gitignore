@@ -6,3 +6,6 @@ __pycache__/
 .venv/
 node_modules/
 .DS_Store
+
+# Telemetry store (JSONL + SQLite). Derived, disposable, never committed.
+var/
