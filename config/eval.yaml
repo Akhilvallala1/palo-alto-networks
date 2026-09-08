@@ -1,0 +1,42 @@
+# Eval plane. `conduit-eval run --suite <name>` reads this.
+#
+# `judge_model` must differ from `model_under_test`: a model never grades its
+# own output (epic AC-14), and the settings loader refuses to start otherwise.
+#
+# Both defaults are offline, so CI runs every suite at zero API spend. Point
+# `model_under_test` at a real model id from config/models.yaml to get a
+# quality number instead of a regression signal.
+model_under_test: "mock:echo"
+judge_model: "offline-judge:rubric"
+
+concurrency: 8
+judge_retries: 1
+
+# A suite that drops by more than 5% of its baseline fails the gate.
+regression_threshold: 0.05
+baseline_dir: evals/baselines
+
+suites:
+  routing:
+    path: evals/golden/routing.jsonl
+    scorer: tier
+    description: >-
+      Tier agreement between the router's classifier and labels re-authored
+      under issue #8 from the tier definitions in docs/SPEC.md.
+
+  guards:
+    path: evals/golden/guards.jsonl
+    scorer: guard
+    description: >-
+      Guard-chain decision accuracy over an independently authored corpus:
+      30 attacks that must be blocked, 20 benign lookalikes that must not be,
+      10 PII cases that must pass through redacted.
+
+  l2c_quality:
+    path: evals/golden/l2c_quality.jsonl
+    scorer: judge
+    pass_threshold: 0.7
+    description: >-
+      Rubric-driven answer quality for lead-to-cash prompts, scored by the
+      judge. Under the mock provider only the stability of this number is
+      meaningful, not its level.

@@ -6,32 +6,38 @@
 
 ## Routing accuracy and cost (issue #4)
 
-- Dataset: `evals/golden/routing.jsonl` — 60 labelled requests
+- Dataset: `evals/golden/routing.jsonl` — 105 labelled requests
 - Assumed completion length: 400 tokens; prompt tokens estimated at 4 characters per token
-- Tier agreement with the golden labels: **100.0%** (epic AC-4 target: >=85%)
-- Resolved by the heuristic alone, zero LLM tie-break calls: **100.0%** (epic AC-6 target: >=80%)
+- Tier agreement with the golden labels: **82.9%** (epic AC-4 target: >=85%)
+- Resolved by the heuristic alone, zero LLM tie-break calls: **81.0%** (epic AC-6 target: >=80%)
 
 ### Cost per 1,000 requests
 
 | Tier | Primary model | Requests | Share | $/1k requests at this tier |
 |---|---|---:|---:|---:|
-| trivial | `claude-haiku-4-5-20251001` | 20 | 33.3% | $2.03 |
-| standard | `claude-sonnet-5` | 18 | 30.0% | $4.10 |
-| complex | `claude-opus-5` | 22 | 36.7% | $10.27 |
+| trivial | `claude-haiku-4-5-20251001` | 37 | 35.2% | $2.03 |
+| standard | `claude-sonnet-5` | 34 | 32.4% | $4.09 |
+| complex | `claude-opus-5` | 34 | 32.4% | $10.25 |
 
 | Strategy | $/1k requests |
 |---|---:|
-| All traffic to `complex` (`claude-opus-5`) | $10.22 |
-| Conduit complexity routing | $5.67 |
-| **Reduction** | **44.5%** (epic AC-5 target: >=40%) |
+| All traffic to `complex` (`claude-opus-5`) | $10.21 |
+| Conduit complexity routing | $5.36 |
+| **Reduction** | **47.5%** (epic AC-5 target: >=40%) |
 
 ### Where the classifier disagrees with the labels
 
 | Labelled | Routed | Count |
 |---|---|---:|
-| complex | complex | 22 |
-| standard | standard | 18 |
-| trivial | trivial | 20 |
+| complex | complex | 31 |
+| complex | standard ⚠ | 2 |
+| complex | trivial ⚠ | 4 |
+| standard | complex ⚠ | 2 |
+| standard | standard | 27 |
+| standard | trivial ⚠ | 4 |
+| trivial | complex ⚠ | 1 |
+| trivial | standard ⚠ | 5 |
+| trivial | trivial | 29 |
 
 ### Method
 
@@ -44,11 +50,11 @@
 
 ### Caveats
 
-- The golden set and the classifier weights were authored in the same change, so
-  these numbers are an upper bound, not held-out performance. The floors the test
-  suite enforces — 85% agreement, 80% heuristic coverage, 40% cheaper — are the
-  claims that survive an independently authored dataset (issue #8 owns one).
-- Stage 2 escalated 0 of 60 prompts here, so the cost
+- The golden set was re-authored under issue #8 without reading the classifier's
+  lexicons, and extended with 45 cases whose surface form is uncorrelated with
+  tier, so agreement is now measured rather than self-graded. It fell from 100%
+  to 82.9% when the corpus stopped confirming its author; see `docs/EVAL.md`.
+- Stage 2 escalated 20 of 105 prompts here, so the cost
   above is very nearly the pure stage-1 cost. Escalating traffic adds one
   cheapest-tier call per distinct prompt hash, cached thereafter.
 - Prices are list rates from `config/models.yaml` with no prompt caching applied;

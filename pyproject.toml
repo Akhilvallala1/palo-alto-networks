@@ -38,6 +38,9 @@ dev = [
     "openai>=1.40",
 ]
 
+[project.scripts]
+conduit-eval = "conduit.eval.cli:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/conduit"]
 
@@ -45,6 +48,11 @@ packages = ["src/conduit"]
 line-length = 100
 target-version = "py311"
 src = ["src", "tests"]
+# The one-shot dataset authoring scripts are kept as provenance records: one
+# labelled case per line, so a reviewer can audit a label against the SPEC
+# category beside it. Reflowing those tables would destroy exactly what makes
+# them auditable.
+extend-exclude = ["evals/authoring"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF"]

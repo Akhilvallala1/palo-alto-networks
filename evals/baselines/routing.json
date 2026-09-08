@@ -1,0 +1,10 @@
+{
+  "cases": 105,
+  "judge_model": "offline-judge:rubric",
+  "mean_score": 0.8285714285714286,
+  "model_under_test": "mock:echo",
+  "note": "",
+  "pass_rate": 0.8285714285714286,
+  "recorded_at": "2026-09-08T06:05:06.618223Z",
+  "suite": "routing"
+}
