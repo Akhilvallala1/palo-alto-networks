@@ -1,9 +1,17 @@
 # Tier -> ordered model chain. The router picks a tier, then walks the chain on
 # failover. First entry is the primary; the rest are fallbacks.
+#
+# Every chain ends in `mock:echo`. The hosted models vanish from the registry
+# when their key env var is unset, and `ollama:llama3.2` is keyless but still
+# needs a server on localhost, so without a terminal mock entry the standard and
+# complex tiers have nothing left to call on a zero-key, no-Ollama machine —
+# which is exactly the configuration AC-17 and the L2C demo (#9) run in.
+# `mock:echo` is eligible for all three tiers in models.yaml, so it is a legal
+# last resort rather than a special case.
 tiers:
   trivial: [claude-haiku-4-5-20251001, "ollama:llama3.2", "mock:echo"]
-  standard: [claude-sonnet-5, claude-haiku-4-5-20251001, "ollama:llama3.2"]
-  complex: [claude-opus-5, claude-sonnet-5]
+  standard: [claude-sonnet-5, claude-haiku-4-5-20251001, "ollama:llama3.2", "mock:echo"]
+  complex: [claude-opus-5, claude-sonnet-5, "mock:echo"]
 
 budgets:
   default_daily_usd: 5.00

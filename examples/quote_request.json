@@ -1,0 +1,15 @@
+{
+  "request_id": "REQ-30007",
+  "account_id": "ACC-10003",
+  "account_name": "Northwind Traders",
+  "opportunity_id": "OPP-80007",
+  "quote_id": "Q-2026-00107",
+  "list_amount_usd": 840000.0,
+  "discount_pct": 26.0,
+  "term_months": 24,
+  "support_tier": "premium",
+  "partner_involved": true,
+  "justification": "competitive displacement against an incumbent renewal",
+  "requested_by": "Jordan Ellis",
+  "requested_by_email": "jellis@northwind.example"
+}

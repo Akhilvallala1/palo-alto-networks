@@ -18,6 +18,12 @@ import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
+from conduit.config import BudgetSettings, ConduitConfig, GuardsConfig, PIISettings
+from conduit.contracts import Complexity
+from conduit.providers.registry import ModelRegistry
+from conduit.telemetry.recorder import TelemetryRecord
+from conduit.telemetry.store import TelemetryQuery
 from tests.gateway_fixtures import (
     ECHO,
     GOOD_KEY,
@@ -30,12 +36,6 @@ from tests.gateway_fixtures import (
     make_config,
     make_registry,
 )
-
-from conduit.config import BudgetSettings, ConduitConfig, GuardsConfig, PIISettings
-from conduit.contracts import Complexity
-from conduit.providers.registry import ModelRegistry
-from conduit.telemetry.recorder import TelemetryRecord
-from conduit.telemetry.store import TelemetryQuery
 
 AUTH = {"X-API-Key": GOOD_KEY}
 

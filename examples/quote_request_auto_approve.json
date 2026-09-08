@@ -1,0 +1,15 @@
+{
+  "request_id": "REQ-30002",
+  "account_id": "ACC-10001",
+  "account_name": "Contoso Logistics",
+  "opportunity_id": "OPP-80002",
+  "quote_id": "Q-2026-00102",
+  "list_amount_usd": 196000.0,
+  "discount_pct": 8.0,
+  "term_months": 36,
+  "support_tier": "standard",
+  "partner_involved": false,
+  "justification": "standard renewal uplift offset",
+  "requested_by": "Priya Raman",
+  "requested_by_email": "praman@contoso.example"
+}

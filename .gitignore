@@ -9,3 +9,7 @@ node_modules/
 
 # Telemetry store (JSONL + SQLite). Derived, disposable, never committed.
 var/
+
+# Seeded GTM data. Regenerate with `python scripts/seed_gtm_data.py`; it is
+# deterministic under a fixed seed, so the files are derived, not source.
+data/

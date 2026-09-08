@@ -25,6 +25,15 @@ dependencies = [
 anthropic = ["anthropic>=0.39"]
 openai = ["openai>=1.40"]
 gemini = ["google-generativeai>=0.8"]
+
+# The L2C demo app (#9). Not core: the gateway must install and run without a
+# graph framework or a vector extension. LangGraph pulls langchain-core, which
+# is not a vendor SDK — it never talks to a model here, because every model call
+# in apps/ goes through Conduit's HTTP API.
+l2c = [
+    "langgraph>=1.0",
+    "sqlite-vec>=0.1.6",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -36,13 +45,17 @@ dev = [
     # gateway's integration suite drives the real SDK over an ASGI transport
     # (offline). Without this the test skips and the claim goes unverified.
     "openai>=1.40",
+    # The L2C suite is part of the full run, so its deps are dev deps too.
+    "langgraph>=1.0",
+    "sqlite-vec>=0.1.6",
 ]
 
 [project.scripts]
 conduit-eval = "conduit.eval.cli:main"
+l2c = "apps.l2c.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/conduit"]
+packages = ["src/conduit", "apps"]
 
 [tool.ruff]
 line-length = 100
@@ -61,6 +74,11 @@ select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF"]
 # `str(Complexity.TRIVIAL)`, so it is an API break rather than a modernization.
 ignore = ["UP042"]
 
+[tool.ruff.lint.isort]
+# `apps` is a top-level package at the repo root rather than under src/, so
+# isort would otherwise sort the L2C app in with third-party libraries.
+known-first-party = ["conduit", "apps", "tests"]
+
 [tool.ruff.lint.per-file-ignores]
 # Protocol stubs and fixtures legitimately shadow builtins / go unused.
 "tests/*" = ["A002"]
@@ -68,12 +86,24 @@ ignore = ["UP042"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-files = ["src/conduit"]
+files = ["src/conduit", "apps"]
 plugins = ["pydantic.mypy"]
+
+# LangGraph ships partial annotations; `StateGraph.compile()` in particular is
+# loose enough that strict mode cannot follow it. The app's own code is still
+# checked strictly — this only stops the graph framework's gaps from being
+# reported as errors in our files.
+[[tool.mypy.overrides]]
+module = ["langgraph.*", "sqlite_vec.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# `apps` is a top-level package in the repo root rather than under `src/`, so
+# the root has to be importable for the L2C suite to find it.
+pythonpath = ["."]
 
 [tool.coverage.run]
 source = ["src/conduit"]
