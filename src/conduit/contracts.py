@@ -44,9 +44,11 @@ class CompletionRequest(BaseModel):
 
 
 class Usage(BaseModel):
-    prompt_tokens: int
+    prompt_tokens: int  # uncached remainder only, excludes the two cache fields
     completion_tokens: int
     cost_usd: float
+    cache_read_tokens: int = 0  # billed at 0.1x input
+    cache_write_tokens: int = 0  # billed at 1.25x input (5m TTL)
 
 
 class CompletionResponse(BaseModel):
@@ -56,7 +58,7 @@ class CompletionResponse(BaseModel):
     usage: Usage
     latency_ms: int
     routed_tier: Complexity
-    fallback_from: str | None = None  # set when primary provider failed
+    fallback_from: list[str] = Field(default_factory=list)  # models tried and failed, in order
 
 
 @runtime_checkable
@@ -72,12 +74,15 @@ class Provider(Protocol):
       mutation. It must return True for exactly the model ids this provider can
       serve, and the router will only pass a `model` to `complete` for which
       `supports(model)` already returned True.
+    - `complete(req, model)` takes the resolved model as its second argument.
+      That argument is authoritative: `req.model` is the caller's request (often
+      None, meaning "router decides") and an implementer must ignore it.
     - `complete(req, model)` returns a `CompletionResponse` whose `provider`
       equals `self.name` and whose `model` is the concrete model actually used —
       never an alias, never None. It must populate `usage` (token counts and the
       priced `cost_usd`) and a measured `latency_ms`. It must not set
       `fallback_from`; only the failover layer that reroutes a failed request
-      may set that field.
+      may append to that list.
     - `complete` raises on failure rather than returning a degraded response, so
       the failover layer can distinguish a retryable error from a real answer.
     - `health()` never raises. It reports reachability only and returns False on
@@ -93,7 +98,7 @@ class Provider(Protocol):
 
 class GuardVerdict(BaseModel):
     allowed: bool
-    risk_score: float  # 0.0-1.0
+    risk_score: float = Field(ge=0.0, le=1.0)
     categories: list[str]  # ["pii:email", "injection:instruction_override"]
     redacted_text: str | None = None
     entity_map: dict[str, str] = Field(default_factory=dict)  # placeholder -> original
@@ -101,7 +106,7 @@ class GuardVerdict(BaseModel):
 
 @runtime_checkable
 class Guard(Protocol):
-    """A synchronous safety check applied to text on ingress and egress.
+    """A safety check applied to text on ingress and egress.
 
     Invariants an implementer must uphold:
 
@@ -110,7 +115,9 @@ class Guard(Protocol):
     - `inspect(text)` is pure: it must not mutate its argument or any shared
       state, and calling it twice with the same text must return an equivalent
       verdict. It is called on the hot request path and must not perform
-      unbounded work.
+      unbounded work. It is async so that a guard may call a model to classify;
+      a guard that needs no I/O is still declared `async` and simply never
+      awaits.
     - `inspect` never raises. A guard that cannot reach a dependency must return
       a verdict rather than propagate an exception; fail-closed policy is
       expressed as `allowed=False`, not as an error.
@@ -125,11 +132,11 @@ class Guard(Protocol):
 
     name: str
 
-    def inspect(self, text: str) -> GuardVerdict: ...
+    async def inspect(self, text: str) -> GuardVerdict: ...
 
 
 class JudgeScore(BaseModel):
     rubric: str
-    score: float  # 0.0-1.0
+    score: float = Field(ge=0.0, le=1.0)
     reasoning: str
     passed: bool

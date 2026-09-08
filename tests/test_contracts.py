@@ -32,7 +32,13 @@ EXPECTED_FIELDS: dict[type[BaseModel], tuple[set[str], set[str]]] = {
         {"messages"},
     ),
     Usage: (
-        {"prompt_tokens", "completion_tokens", "cost_usd"},
+        {
+            "prompt_tokens",
+            "completion_tokens",
+            "cost_usd",
+            "cache_read_tokens",
+            "cache_write_tokens",
+        },
         {"prompt_tokens", "completion_tokens", "cost_usd"},
     ),
     CompletionResponse: (
@@ -87,7 +93,7 @@ INSTANCES: list[BaseModel] = [
         usage=USAGE,
         latency_ms=980,
         routed_tier=Complexity.STANDARD,
-        fallback_from="anthropic",
+        fallback_from=["anthropic"],
     ),
     GuardVerdict(allowed=True, risk_score=0.0, categories=[]),
     GuardVerdict(
@@ -166,7 +172,7 @@ def test_completion_response_defaults_have_no_fallback() -> None:
         latency_ms=1,
         routed_tier=Complexity.TRIVIAL,
     )
-    assert resp.fallback_from is None
+    assert resp.fallback_from == []
 
 
 def test_guard_verdict_defaults() -> None:
@@ -259,7 +265,7 @@ class _StubProvider:
 class _StubGuard:
     name = "stub"
 
-    def inspect(self, text: str) -> GuardVerdict:
+    async def inspect(self, text: str) -> GuardVerdict:
         return GuardVerdict(allowed=True, risk_score=0.0, categories=[])
 
 
@@ -272,11 +278,14 @@ def test_a_structural_implementation_satisfies_provider() -> None:
 def test_a_structural_implementation_satisfies_guard() -> None:
     guard: Guard = _StubGuard()
     assert isinstance(guard, Guard)
-    assert guard.inspect("hello").allowed
+
+
+async def test_guard_inspect_returns_a_verdict() -> None:
+    assert (await _StubGuard().inspect("hello")).allowed
 
 
 async def test_provider_complete_returns_a_completion_response() -> None:
     resp = await _StubProvider().complete(CompletionRequest(messages=[MESSAGE]), "mock:echo")
     assert resp.provider == "mock"
     assert resp.model == "mock:echo"
-    assert resp.fallback_from is None
+    assert resp.fallback_from == []

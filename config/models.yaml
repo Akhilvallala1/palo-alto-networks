@@ -3,16 +3,16 @@
 models:
   claude-opus-5:
     provider: anthropic
-    input_per_1m_usd: 15.00
-    output_per_1m_usd: 75.00
-    context_window: 200000
+    input_per_1m_usd: 5.00
+    output_per_1m_usd: 25.00
+    context_window: 1000000
     tiers: [complex]
 
   claude-sonnet-5:
     provider: anthropic
-    input_per_1m_usd: 3.00
-    output_per_1m_usd: 15.00
-    context_window: 200000
+    input_per_1m_usd: 2.00
+    output_per_1m_usd: 10.00
+    context_window: 1000000
     tiers: [standard, complex]
 
   claude-haiku-4-5-20251001:
